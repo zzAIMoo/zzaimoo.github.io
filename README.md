@@ -6,6 +6,11 @@ This Mora Jai Puzzle Box Solver is a web application designed to help users find
 
 This tool was developed to assist with complex puzzle box scenarios where the tile interactions can be intricate and difficult to solve manually but you can use it for easier ones too :P.
 
+## Live Version
+
+You can use the Mora Jai Solver directly in your browser by visiting:
+[https://zzaimoo.github.io/](https://zzaimoo.github.io/)
+
 ## Features
 
 * **Interactive 3x3 Grid Setup:** Easily set the color of each tile on the 3x3 grid using a color palette.
