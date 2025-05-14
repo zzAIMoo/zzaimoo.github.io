@@ -361,22 +361,18 @@ function solvePuzzle() {
                 }
                 break;
             case 'white':
-                let expanded = false;
-                if (row > 0 && newState[(row - 1) * cols + col] === 'gray') {
-                    newState[(row - 1) * cols + col] = 'white';
-                    expanded = true;
-                }
-                if (col < cols - 1 && newState[row * cols + (col + 1)] === 'gray') {
-                    newState[row * cols + (col + 1)] = 'white';
-                    expanded = true;
-                }
-                if (row < rows - 1 && newState[(row + 1) * cols + col] === 'gray') {
-                    newState[(row + 1) * cols + col] = 'white';
-                    expanded = true;
-                }
-                if (col > 0 && newState[row * cols + (col - 1)] === 'gray') {
-                    newState[row * cols + (col - 1)] = 'white';
-                    expanded = true;
+                const initialNeighborStates = [];
+                if (row > 0) initialNeighborStates.push({ idx: (row - 1) * cols + col, color: newState[(row - 1) * cols + col] });
+                if (col < cols - 1) initialNeighborStates.push({ idx: row * cols + (col + 1), color: newState[row * cols + (col + 1)] });
+                if (row < rows - 1) initialNeighborStates.push({ idx: (row + 1) * cols + col, color: newState[(row + 1) * cols + col] });
+                if (col > 0) initialNeighborStates.push({ idx: row * cols + (col - 1), color: newState[row * cols + (col - 1)] });
+
+                for (const neighbor of initialNeighborStates) {
+                    if (neighbor.color === 'gray') {
+                        newState[neighbor.idx] = 'white';
+                    } else if (neighbor.color === 'white') {
+                        newState[neighbor.idx] = 'gray';
+                    }
                 }
                 newState[index] = 'gray';
                 break;
@@ -491,26 +487,17 @@ function solvePuzzle() {
                         }
                         break;
                     case 'white':
-                        const middleTileRow_w = Math.floor(middleIndex / cols);
-                        const middleTileCol_w = middleIndex % cols;
-                        let middleWhiteWouldExpand_w = false;
-                        if (middleTileRow_w > 0 && tempStateForBlueAction[(middleTileRow_w - 1) * cols + middleTileCol_w] === 'gray') middleWhiteWouldExpand_w = true;
-                        if (!middleWhiteWouldExpand_w && middleTileCol_w < cols - 1 && tempStateForBlueAction[middleTileRow_w * cols + (middleTileCol_w + 1)] === 'gray') middleWhiteWouldExpand_w = true;
-                        if (!middleWhiteWouldExpand_w && middleTileRow_w < rows - 1 && tempStateForBlueAction[(middleTileRow_w + 1) * cols + middleTileCol_w] === 'gray') middleWhiteWouldExpand_w = true;
-                        if (!middleWhiteWouldExpand_w && middleTileCol_w > 0 && tempStateForBlueAction[middleTileRow_w * cols + (middleTileCol_w - 1)] === 'gray') middleWhiteWouldExpand_w = true;
+                        const blueInitialNeighborStates = [];
+                        if (row > 0) blueInitialNeighborStates.push({ idx: (row - 1) * cols + col, color: tempStateForBlueAction[(row - 1) * cols + col] });
+                        if (col < cols - 1) blueInitialNeighborStates.push({ idx: row * cols + (col + 1), color: tempStateForBlueAction[row * cols + (col + 1)] });
+                        if (row < rows - 1) blueInitialNeighborStates.push({ idx: (row + 1) * cols + col, color: tempStateForBlueAction[(row + 1) * cols + col] });
+                        if (col > 0) blueInitialNeighborStates.push({ idx: row * cols + (col - 1), color: tempStateForBlueAction[row * cols + (col - 1)] });
 
-                        if (middleWhiteWouldExpand_w) {
-                            if (row > 0 && tempStateForBlueAction[(row - 1) * cols + col] === 'gray') {
-                                tempStateForBlueAction[(row - 1) * cols + col] = 'blue';
-                            }
-                            if (col < cols - 1 && tempStateForBlueAction[row * cols + (col + 1)] === 'gray') {
-                                tempStateForBlueAction[row * cols + (col + 1)] = 'blue';
-                            }
-                            if (row < rows - 1 && tempStateForBlueAction[(row + 1) * cols + col] === 'gray') {
-                                tempStateForBlueAction[(row + 1) * cols + col] = 'blue';
-                            }
-                            if (col > 0 && tempStateForBlueAction[row * cols + (col - 1)] === 'gray') {
-                                tempStateForBlueAction[row * cols + (col - 1)] = 'blue';
+                        for (const neighbor of blueInitialNeighborStates) {
+                            if (neighbor.color === 'gray') {
+                                tempStateForBlueAction[neighbor.idx] = 'blue';
+                            } else if (neighbor.color === 'white' || neighbor.color === 'blue') {
+                                tempStateForBlueAction[neighbor.idx] = 'gray';
                             }
                         }
                         tempStateForBlueAction[index] = 'gray';
