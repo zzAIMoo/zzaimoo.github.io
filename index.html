@@ -19,6 +19,7 @@
             <div class="tab-container">
                 <div class="tab active" data-tab="setup">Setup Puzzle</div>
                 <div class="tab" data-tab="solve">Solve</div>
+                <div class="tab" data-tab="sandbox">Sandbox</div>
                 <div class="tab" data-tab="help">Help</div>
             </div>
 
@@ -69,10 +70,45 @@
                         <button id="toggle-notation-btn">Toggle Position Notation</button>
                     </div>
 
-                    <div id="notification-area"></div>
-
                     <div class="solution-container" id="solution-output">
                         <p>Press "Find Solution" to start solving the puzzle...</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-content" id="sandbox">
+                <div class="sandbox-main-content">
+                    <div class="section">
+                        <h2>Sandbox Mode</h2>
+                        <p>Set up a grid and manually trigger tile actions. First, select colors from the palette below to set up the initial grid and (optional) corner reference colors. Then, de-select any color (e.g. by clicking the selected color again or clicking outside the palette) and click on any tile in the grid to activate its function.</p>
+
+                        <div class="grid-container" id="sandbox-grid-container">
+                            <div class="grid" id="sandbox-grid">
+                            </div>
+                            <div class="symbol top-left-symbol" id="symbol-tl-sandbox">TL</div>
+                            <div class="symbol top-right-symbol" id="symbol-tr-sandbox">TR</div>
+                            <div class="symbol bottom-left-symbol" id="symbol-bl-sandbox">BL</div>
+                            <div class="symbol bottom-right-symbol" id="symbol-br-sandbox">BR</div>
+                        </div>
+
+                        <div class="color-picker" id="sandbox-color-palette">
+                        </div>
+                    </div>
+                    <div class="controls sandbox-actions">
+                        <button id="reset-sandbox-btn">Reset Sandbox</button>
+                        <button id="restart-sandbox-puzzle-btn">Restart Puzzle</button>
+                        <button id="generate-random-sandbox-puzzle-btn">Generate Random Puzzle</button>
+                        <button id="sandbox-test-solve-btn">Test Solve This Puzzle</button>
+                    </div>
+                    <div class="sandbox-difficulty-controls">
+                        <label for="sandbox-difficulty-slider">Difficulty: <span id="sandbox-difficulty-value">Medium</span></label>
+                        <input type="range" id="sandbox-difficulty-slider" min="1" max="3" value="2" title="Adjust puzzle complexity (solution length)">
+                    </div>
+                    <div class="sandbox-seed-controls">
+                        <input type="text" id="sandbox-seed-input" placeholder="Enter Seed">
+                        <button id="sandbox-load-seed-btn">Load from Seed</button>
+                    </div>
+                    <div id="sandbox-solution-display" class="solution-container" style="margin-top: 20px; display: none;">
                     </div>
                 </div>
             </div>
@@ -146,5 +182,31 @@
                 </div>
             </div>
         </div>
+
+        <div id="sandbox-victory-modal" class="modal-overlay">
+            <div class="modal-content card-style">
+                <h2>Puzzle Solved!</h2>
+                <p>Congratulations, you've matched all target corners in the Sandbox!</p>
+                <button id="sandbox-victory-reset-btn" class="button-primary">Play Again (Reset All)</button>
+                <button id="sandbox-restart-puzzle-modal-btn" class="button-secondary">Restart This Puzzle</button>
+            </div>
+        </div>
+
+        <div id="sandbox-loading-modal" class="modal-overlay">
+            <div class="modal-content card-style">
+                <h2 id="loading-modal-title">Asking Herbie for help...</h2>
+                <div class="spinner"></div>
+                <p id="loading-phrase" style="margin-top: 20px;">Mixing mischievous hues...</p>
+            </div>
+        </div>
+
+        <div id="sandbox-history-panel" class="history-panel" style="display: none;">
+            <h3>Puzzle History</h3>
+            <ul id="sandbox-history-list">
+            </ul>
+            <button id="sandbox-clear-history-btn" class="small-action-button" style="display:none; margin-top: 10px;">Clear History</button>
+        </div>
+
+        <div id="toast-container"></div>
     </body>
 </html>
