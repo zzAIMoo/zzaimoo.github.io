@@ -46,6 +46,7 @@ let loadingModalElement = null;
 let loadingPhraseElement = null;
 let loadingModalTitleElement = null;
 let sandboxTestSolveBtn = null;
+let spoilerFreeToggle = null;
 
 const difficultySettings = {
     1: { label: 'Easy', minSteps: 3, maxSteps: 5 },    // Trivial if < 3 steps
@@ -84,6 +85,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
     populateSandboxHistoryUI();
     initClearHistoryButton();
+    checkInitialSandboxStateForModal();
+    initSpoilerMode();
+    initSolutionStepSpoilers('solution-output');
+    initSolutionStepSpoilers('sandbox-solution-display');
 });
 
 function initGrid() {
@@ -306,7 +311,7 @@ function validateInputs() {
     return true;
 }
 
-function showNotification(message, type = 'info') {
+function showNotification(message, type = 'info', duration = 3000) {
     const toastContainer = document.getElementById('toast-container');
     if (!toastContainer) {
         console.error('Toast container not found!');
@@ -339,7 +344,7 @@ function showNotification(message, type = 'info') {
         toast.classList.remove('toast-fade-in');
         toast.classList.add('toast-fade-out');
         setTimeout(() => toast.remove(), 300);
-    }, 5000);
+    }, duration);
 
     closeButton.addEventListener('click', () => {
         clearTimeout(autoRemoveTimeout);
@@ -731,10 +736,25 @@ function solvePuzzle() {
             </div>
         `;
 
+        let stepsInteractiveHtml = '<div class="solution-steps-interactive-container">';
+        result.path.forEach((step, i) => {
+            const stepText = `(${getPositionNotation(step.index)} - ${colors[step.triggeredBy].name})`;
+            stepsInteractiveHtml += `
+                <div class="solution-step-spoiler" role="button" tabindex="0" aria-pressed="false" aria-label="Reveal step ${i + 1}">
+                    <span class="spoiler-placeholder">[Step ${i + 1}]</span>
+                    <span class="spoiler-content">${stepText}</span>
+                </div>
+            `;
+            if (i < result.path.length - 1) {
+                stepsInteractiveHtml += '<span class="solution-step-arrow">→</span>';
+            }
+        });
+        stepsInteractiveHtml += '</div>';
+
         html += `
             <div class="solution-step">
-                <h4>Press Tiles in This Order:</h4>
-                <p>${result.path.map(step => `(${getPositionNotation(step.index)} - ${colors[step.triggeredBy].name})`).join(' <span style="color:var(--primary-color);">→</span> ')}</p>
+                <h4>Press Tiles in This Order (click to reveal):</h4>
+                ${stepsInteractiveHtml}
             </div>
         `;
 
@@ -1107,7 +1127,6 @@ function setSeed(seed) {
 function showLoadingModal(initialPhrase) {
     if (!loadingModalElement) loadingModalElement = document.getElementById('sandbox-loading-modal');
     if (!loadingPhraseElement) loadingPhraseElement = document.getElementById('loading-phrase');
-    if (!loadingModalTitleElement) loadingModalTitleElement = document.getElementById('loading-modal-title');
 
     if (loadingModalElement && loadingPhraseElement) {
         loadingPhraseElement.textContent = initialPhrase || loadingPhrases[Math.floor(Math.random() * loadingPhrases.length)];
@@ -1538,10 +1557,25 @@ function displaySandboxSolution(path, initialGridState, solutionTargetCorners) {
         </div>
     `;
 
+    let stepsInteractiveHtml = '<div class="solution-steps-interactive-container">';
+    path.forEach((step, i) => {
+        const stepText = `(${getPositionNotation(step.index)} - ${colors[step.triggeredBy].name})`;
+        stepsInteractiveHtml += `
+            <div class="solution-step-spoiler" role="button" tabindex="0" aria-pressed="false" aria-label="Reveal step ${i + 1}">
+                <span class="spoiler-placeholder">[Step ${i + 1}]</span>
+                <span class="spoiler-content">${stepText}</span>
+            </div>
+        `;
+        if (i < path.length - 1) {
+            stepsInteractiveHtml += '<span class="solution-step-arrow">→</span>';
+        }
+    });
+    stepsInteractiveHtml += '</div>';
+
     html += `
         <div class="solution-step">
-            <h4>Press Tiles in This Order:</h4>
-            <p>${path.map(step => `(${getPositionNotation(step.index)} - ${colors[step.triggeredBy].name})`).join(' <span style="color:var(--primary-color);">→</span> ')}</p>
+            <h4>Press Tiles in This Order (click to reveal):</h4>
+            ${stepsInteractiveHtml}
         </div>
     `;
 
@@ -1823,3 +1857,66 @@ window.addEventListener('resize', () => {
         adjustHistoryPanelHeight();
     }
 });
+
+function applySpoilerMode(isSpoilerFree) {
+    if (isSpoilerFree) {
+        document.body.classList.add('spoilers-hidden');
+    } else {
+        document.body.classList.remove('spoilers-hidden');
+    }
+}
+
+function handleSpoilerToggleChange() {
+    if (!spoilerFreeToggle) return;
+    const isSpoilerFree = spoilerFreeToggle.checked;
+    applySpoilerMode(isSpoilerFree);
+    localStorage.setItem('spoilerFreeEnabled', isSpoilerFree.toString());
+}
+
+function initSpoilerMode() {
+    spoilerFreeToggle = document.getElementById('spoiler-free-toggle');
+    if (!spoilerFreeToggle) {
+        return;
+    }
+
+    let spoilerFreeEnabled = localStorage.getItem('spoilerFreeEnabled');
+    if (spoilerFreeEnabled === null) {
+        spoilerFreeEnabled = true;
+    } else {
+        spoilerFreeEnabled = spoilerFreeEnabled === 'true';
+    }
+
+    spoilerFreeToggle.checked = spoilerFreeEnabled;
+    applySpoilerMode(spoilerFreeEnabled);
+
+    spoilerFreeToggle.addEventListener('change', handleSpoilerToggleChange);
+}
+
+function checkInitialSandboxStateForModal() {
+    console.log("Initial sandbox state checked.");
+}
+
+function initSolutionStepSpoilers(containerId) {
+    const container = document.getElementById(containerId);
+    if (!container) {
+        console.warn(`Spoiler container #${containerId} not found.`);
+        return;
+    }
+
+    container.addEventListener('click', function (event) {
+        const spoiler = event.target.closest('.solution-step-spoiler');
+        if (spoiler) {
+            spoiler.classList.toggle('revealed');
+            const isRevealed = spoiler.classList.contains('revealed');
+            spoiler.setAttribute('aria-pressed', isRevealed.toString());
+        }
+    });
+
+    container.addEventListener('keydown', function (event) {
+        const spoiler = event.target.closest('.solution-step-spoiler');
+        if (spoiler && (event.key === 'Enter' || event.key === ' ')) {
+            event.preventDefault(); // Prevent page scroll on Spacebar
+            spoiler.click();
+        }
+    });
+}

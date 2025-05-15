@@ -1185,3 +1185,114 @@ h1 {
     background-color: var(--notification-error-bg, #5D2A2A);
     color: var(--notification-error-text, #FFC0C0);
 }
+
+body.spoilers-hidden .color-option svg {
+    display: none !important;
+}
+
+.settings-section {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+    padding: 10px 15px;
+    background-color: var(--background-grid-area);
+    border-radius: var(--border-radius-medium);
+    border: 1px solid var(--border-color);
+    justify-content: flex-start;
+}
+
+.settings-section label {
+    color: var(--text-secondary);
+}
+
+#spoiler-free-toggle {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    width: 40px;
+    height: 20px;
+    background-color: var(--border-color-light);
+    border-radius: 10px;
+    position: relative;
+    cursor: pointer;
+    outline: none;
+    transition: background-color 0.3s;
+    flex-shrink: 0;
+}
+
+#spoiler-free-toggle::before {
+    content: '';
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background-color: white;
+    top: 2px;
+    left: 2px;
+    transition: transform 0.3s ease-in-out;
+}
+
+#spoiler-free-toggle:checked {
+    background-color: var(--primary-color);
+}
+
+#spoiler-free-toggle:checked::before {
+    transform: translateX(20px);
+}
+
+#sandbox-color-palette {
+    transition: opacity 0.3s ease-in-out;
+}
+
+.solution-steps-interactive-container {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 5px;
+    padding-top: 5px;
+}
+
+.solution-step-spoiler {
+    background-color: var(--border-color-light);
+    color: var(--text-secondary);
+    padding: 6px 12px;
+    border-radius: var(--border-radius-medium);
+    cursor: pointer;
+    transition: background-color 0.2s, color 0.2s;
+    display: inline-block;
+    font-family: monospace;
+}
+
+.solution-step-spoiler:hover {
+    background-color: var(--border-color);
+}
+
+.solution-step-spoiler .spoiler-placeholder {
+    display: inline;
+}
+
+.solution-step-spoiler .spoiler-content {
+    display: none;
+    color: var(--text-primary);
+}
+
+.solution-step-spoiler.revealed {
+    background-color: var(--secondary-color);
+    color: var(--text-primary);
+}
+
+.solution-step-spoiler.revealed .spoiler-placeholder {
+    display: none;
+}
+
+.solution-step-spoiler.revealed .spoiler-content {
+    display: inline;
+}
+
+.solution-step-arrow {
+    color: var(--primary-color);
+    font-weight: bold;
+    margin: 0 3px;
+    user-select: none;
+}
