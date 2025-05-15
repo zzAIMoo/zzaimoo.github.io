@@ -7,8 +7,8 @@ const colors = {
     pink: { name: 'Pink', hex: '#ff69b4', function: 'Rotates adjacent tiles clockwise' },
     purple: { name: 'Purple', hex: '#800080', function: 'Changes place with tile below' },
     orange: { name: 'Orange', hex: '#ffa500', function: 'Matches majority of adjacent tiles' },
-    white: { name: 'White', hex: '#ffffff', function: 'Expands or disappears (or does both :P)' },
-    blue: { name: 'Blue', hex: '#4387d9', function: 'Copies middle tile behaviour' }
+    white: { name: 'White', hex: '#ffffff', function: 'Toggles itself and all neighbouring tiles between grey and white' },
+    blue: { name: 'Blue', hex: '#4387d9', function: 'Copies middle tile behaviour when clicked' }
 };
 
 let selectedColor = null;
@@ -18,7 +18,6 @@ let solvingInProgress = false;
 let stopSolving = false;
 let useWrittenNotation = false;
 
-// State for Sandbox Mode
 let sandboxGrid = Array(9).fill('gray');
 let sandboxSelectedColor = null;
 let sandboxTargetCorners = { tl: null, tr: null, bl: null, br: null };

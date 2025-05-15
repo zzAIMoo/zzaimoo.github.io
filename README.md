@@ -49,13 +49,11 @@ The solver understands the following tile behaviors when a tile is activated:
 * **Purple:** Moves itself one position down (swapping with the tile below it).
 * **Orange:** Changes its own color to match the majority color of its 4 orthogonally adjacent tiles (if a strict majority exists).
 * **White:**
-  * **Expands:** If adjacent to any Gray tiles, turns those Gray tiles White. The activated White tile then turns Gray.
-  * **Disappears:** If not adjacent to any Gray tiles, the activated White tile turns Gray.
+  * Toggles itself and all neighbouring tiles between grey and white
 * **Blue:** Copies the function of the tile in the middle of the grid (index 4).
   * If the middle tile's action involves movement, the Blue tile moves and remains Blue.
   * If copying White:
-    * If White would expand, Blue turns its adjacent Gray tiles Blue, then turns Gray itself.
-    * If White would disappear, Blue turns Gray itself.
+    * Toggles itself and all neighbouring tiles between grey and blue
   * The Blue tile is generally immune to effects that would change its own color unless the copied function explicitly dictates it (e.g., copying Orange or a disappearing White). If the middle tile is Blue, the activated Blue tile does nothing.
 
 ## How to Use
