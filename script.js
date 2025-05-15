@@ -764,7 +764,7 @@ function solvePuzzle() {
                     <p style="margin-top:10px;">State Before:</p>
                     <div class="grid-representation">
                         ${stateBeforeMove.map((c, tileIdx) => `
-                            <div style="background-color: ${colors[color].hex};" class="${tileIdx === index ? 'highlighted-action' : ''}"></div>
+                            <div style="background-color: ${colors[c].hex};" class="${tileIdx === index ? 'highlighted-action' : ''}"></div>
                         `).join('')}
                     </div>
                     <p style="margin-top:10px;">State After:</p>
@@ -1571,7 +1571,7 @@ function displaySandboxSolution(path, initialGridState, solutionTargetCorners) {
                 <p style="margin-top:10px;">State Before:</p>
                 <div class="grid-representation">
                     ${stateBeforeMove.map((c, tileIdx) => `
-                        <div style="background-color: ${colors[color].hex};" class="${tileIdx === index ? 'highlighted-action' : ''}"></div>
+                        <div style="background-color: ${colors[c].hex};" class="${tileIdx === index ? 'highlighted-action' : ''}"></div>
                     `).join('')}
                 </div>
                 <p style="margin-top:10px;">State After:</p>
