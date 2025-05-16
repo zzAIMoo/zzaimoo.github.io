@@ -7,7 +7,7 @@ Welcome to the Blue Prince Companion! This project is a collection of tools and 
 Currently, the companion includes:
 
 * **Mora Jai Puzzle Box Solver:** A dedicated tool to help users find solutions for the 3x3 grid-based puzzle boxes.
-* **Constellation Calculator (Coming Soon):** A planned tool to help with constellation-related calculations.
+* **Constellation Calculator (WIP):** A tool to help with constellations
 
 This tool was developed to assist with complex puzzle box scenarios where the tile interactions can be intricate and difficult to solve manually but you can use it for easier ones too :P.
 
