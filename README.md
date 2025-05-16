@@ -18,8 +18,9 @@ You can use the Mora Jai Solver directly in your browser by visiting:
 
 ## Features
 
-* **Modular Design:** Organized into sub-applications for different functionalities.
-* **User-Friendly Interface:** Easy navigation between tools.
+### Constellation Calculator Features (Coming Soon)
+
+* (Details to be added as the tool is developed)
 
 ### Mora Jai Puzzle Box Solver Features
 
@@ -45,10 +46,6 @@ You can use the Mora Jai Solver directly in your browser by visiting:
   * Displays a list of recent puzzles in a dedicated panel next to the sandbox.
   * Allows loading a previously generated puzzle from history back into the sandbox.
   * Option to clear the puzzle history.
-
-### Constellation Calculator Features (Coming Soon)
-
-* (Details to be added as the tool is developed)
 
 ## Tile Color Functions
 
@@ -110,21 +107,9 @@ The solver understands the following tile behaviors when a tile is activated:
         * Each entry has a "Load" button to reload that puzzle's configuration (grid, targets, seed, difficulty) into the sandbox setup area. The solution for the loaded puzzle is also re-established for the "Show Solution Steps" button.
         * A "Clear History" button allows for removing all saved puzzles from the history (requires confirmation).
 
-## Technology Used
-
-* **HTML:** Structure of the web page.
-* **CSS:** Styling for the user interface, including the dark theme and responsive elements.
-* **JavaScript (Vanilla):** All client-side logic for:
-  * Grid interaction and setup.
-  * Puzzle state management.
-  * Implementation of tile color functions.
-  * Search algorithms (BFS, IDDFS).
-
 ## Future Enhancements (Potential)
 
-* Implement a "share" feature to share puzzle setups and solutions.
 * Optimize search algorithms further for very complex puzzles. (probably not needed)
-* Save/Load puzzle configurations.
 * Add cool animation for the step solution :sunglasses:
 
 ## Contributing
