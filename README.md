@@ -1,8 +1,13 @@
-# Mora Jai Puzzle Box Solver
+# Blue Prince Companion
 
 ## Description
 
-This Mora Jai Puzzle Box Solver is a web application designed to help users find solutions for the 3x3 grid-based puzzle boxes encountered in Blue Prince.
+Welcome to the Blue Prince Companion! This project is a collection of tools and utilities designed to assist with various aspects of the game Blue Prince.
+
+Currently, the companion includes:
+
+* **Mora Jai Puzzle Box Solver:** A dedicated tool to help users find solutions for the 3x3 grid-based puzzle boxes.
+* **Constellation Calculator (Coming Soon):** A planned tool to help with constellation-related calculations.
 
 This tool was developed to assist with complex puzzle box scenarios where the tile interactions can be intricate and difficult to solve manually but you can use it for easier ones too :P.
 
@@ -12,6 +17,11 @@ You can use the Mora Jai Solver directly in your browser by visiting:
 [https://zzaimoo.github.io/](https://zzaimoo.github.io/)
 
 ## Features
+
+* **Modular Design:** Organized into sub-applications for different functionalities.
+* **User-Friendly Interface:** Easy navigation between tools.
+
+### Mora Jai Puzzle Box Solver Features
 
 * **Interactive 3x3 Grid Setup:** Easily set the color of each tile on the 3x3 grid using a color palette.
 * **Target Corner Color Definition:** Specify the required final colors for the four corner tiles (Top-Left, Top-Right, Bottom-Left, Bottom-Right).
@@ -35,6 +45,10 @@ You can use the Mora Jai Solver directly in your browser by visiting:
   * Displays a list of recent puzzles in a dedicated panel next to the sandbox.
   * Allows loading a previously generated puzzle from history back into the sandbox.
   * Option to clear the puzzle history.
+
+### Constellation Calculator Features (Coming Soon)
+
+* (Details to be added as the tool is developed)
 
 ## Tile Color Functions
 

@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Mora Jai Solver</title>
+        <link rel="stylesheet" href="../theme.css">
+        <link rel="stylesheet" href="mora_jai_styles.css">
+        <script src="mora_jai_scripts.js"></script>
+    </head>
+    <body>
+        <div style="padding: 15px 0px 0px 15px;">
+            <a href="../index.html" class="button button-secondary button-small">&larr; Back to Home</a>
+        </div>
+        <div class="external-links-container">
+            <a href="https://github.com/zzAIMoo/zzaimoo.github.io" target="_blank" title="View on GitHub">
+                <svg viewBox="0 0 16 16" version="1.1" aria-hidden="true"><path fill-rule="evenodd" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path></svg>
+            </a>
+        </div>
+        <div class="container">
+            <header>
+                <h1>Mora Jai Box Solver</h1>
+            </header>
+            <div class="settings-section">
+                <label for="spoiler-free-toggle">
+                    Spoiler-Free Mode (This shows some icons, do not use if you are unsure on what i'm talking about):
+                </label>
+                <input type="checkbox" id="spoiler-free-toggle" class="toggle-switch">
+            </div>
+            <div class="tab-container">
+                <div class="tab active" data-tab="setup">Setup Puzzle</div>
+                <div class="tab" data-tab="solve">Solve</div>
+                <div class="tab" data-tab="sandbox">Sandbox</div>
+                <div class="tab" data-tab="help">Help</div>
+            </div>
+
+            <div class="tab-content active" id="setup">
+                <div class="card">
+                    <h2 class="card-title">Step 1: Set up initial grid</h2>
+                    <p>Click on a color, then click on a cell to fill it with that color.</p>
+
+                    <div class="grid-container">
+                        <div class="grid" id="puzzle-grid">
+                        </div>
+
+                        <div class="symbol top-left-symbol"
+                            id="symbol-tl">TL</div>
+                        <div class="symbol top-right-symbol"
+                            id="symbol-tr">TR</div>
+                        <div class="symbol bottom-left-symbol"
+                            id="symbol-bl">BL</div>
+                        <div class="symbol bottom-right-symbol"
+                            id="symbol-br">BR</div>
+                    </div>
+
+                    <div class="color-picker" id="color-palette">
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h2 class="card-title">Step 2: Set target corner colors</h2>
+                    <p>Click on a corner symbol (TL, TR, BL, BR) around the
+                        grid, then select its target color from the palette
+                        above.</p>
+
+                </div>
+
+                <div class="controls">
+                    <button id="reset-btn" class="button">Reset Grid</button>
+                    <button id="proceed-btn" class="button">Proceed to Solve</button>
+                </div>
+            </div>
+
+            <div class="tab-content" id="solve">
+                <div class="card">
+                    <h2 class="card-title">Puzzle Solution</h2>
+
+                    <div class="controls">
+                        <button id="solve-btn" class="button">Find Solution</button>
+                        <button id="stop-btn" class="button" disabled>Stop Solving</button>
+                        <button id="toggle-notation-btn" class="button">Toggle Position Notation</button>
+                    </div>
+
+                    <div class="solution-container" id="solution-output">
+                        <p>Press "Find Solution" to start solving the puzzle...</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-content" id="sandbox">
+                <div class="sandbox-main-content">
+                    <div class="card">
+                        <h2 class="card-title">Sandbox Mode</h2>
+                        <p>Set up a grid and manually trigger tile actions. First, select colors from the palette below to set up the initial grid and (optional) corner reference colors. Then, de-select any color (e.g. by clicking the selected color again or clicking outside the palette) and click on any tile in the grid to activate its function.</p>
+
+                        <div class="grid-container" id="sandbox-grid-container">
+                            <div class="grid" id="sandbox-grid">
+                            </div>
+                            <div class="symbol top-left-symbol" id="symbol-tl-sandbox">TL</div>
+                            <div class="symbol top-right-symbol" id="symbol-tr-sandbox">TR</div>
+                            <div class="symbol bottom-left-symbol" id="symbol-bl-sandbox">BL</div>
+                            <div class="symbol bottom-right-symbol" id="symbol-br-sandbox">BR</div>
+                        </div>
+
+                        <div class="color-picker" id="sandbox-color-palette">
+                        </div>
+                    </div>
+                    <div class="controls sandbox-actions">
+                        <button id="reset-sandbox-btn" class="button">Reset Sandbox</button>
+                        <button id="restart-sandbox-puzzle-btn" class="button">Restart Puzzle</button>
+                        <button id="generate-random-sandbox-puzzle-btn" class="button">Generate Random Puzzle</button>
+                        <button id="sandbox-test-solve-btn" class="button">Test Solve This Puzzle</button>
+                    </div>
+                    <div class="sandbox-difficulty-controls">
+                        <label for="sandbox-difficulty-slider">Difficulty: <span id="sandbox-difficulty-value">Medium</span></label>
+                        <input type="range" id="sandbox-difficulty-slider" min="1" max="3" value="2" title="Adjust puzzle complexity (solution length)">
+                    </div>
+                    <div class="sandbox-seed-controls">
+                        <input type="text" id="sandbox-seed-input" placeholder="Enter Seed">
+                        <button id="sandbox-load-seed-btn" class="button button-small">Load from Seed</button>
+                    </div>
+                    <div id="sandbox-solution-display" class="solution-container" style="margin-top: 20px; display: none;">
+                    </div>
+                </div>
+            </div>
+
+            <div class="tab-content" id="help">
+                <div class="card">
+                    <h2 class="card-title">How to Use This Solver</h2>
+                    <ol>
+                        <li>Set up the initial 3x3 grid by selecting colors for
+                            each cell</li>
+                        <li>Assign the correct target colors for each corner
+                            symbol</li>
+                        <li>Go to the Solve tab and click "Find Solution"</li>
+                        <li>The solver will attempt to find a sequence of moves
+                            to solve the puzzle</li>
+                    </ol>
+
+                    <h2 class="card-title">Color Behaviours</h2>
+                    <div class="color-legend">
+                        <div class="color-item">
+                            <div class="color-square"
+                                style="background-color: #aaaaaa;"></div>
+                            <span>Gray: Empty space</span>
+                        </div>
+                        <div class="color-item">
+                            <div class="color-square"
+                                style="background-color: #000000;"></div>
+                            <span>Black: Moves row right</span>
+                        </div>
+                        <div class="color-item">
+                            <div class="color-square"
+                                style="background-color: #ff0000;"></div>
+                            <span>Red: White→Black, Black→Red</span>
+                        </div>
+                        <div class="color-item">
+                            <div class="color-square"
+                                style="background-color: #00ff00;"></div>
+                            <span>Green: Swaps with opposite tile</span>
+                        </div>
+                        <div class="color-item">
+                            <div class="color-square"
+                                style="background-color: #ffff00;"></div>
+                            <span>Yellow: Changes place with tile above</span>
+                        </div>
+                        <div class="color-item">
+                            <div class="color-square"
+                                style="background-color: #ff69b4;"></div>
+                            <span>Pink: Rotates adjacent tiles clockwise</span>
+                        </div>
+                        <div class="color-item">
+                            <div class="color-square"
+                                style="background-color: #800080;"></div>
+                            <span>Purple: Changes place with tile below</span>
+                        </div>
+                        <div class="color-item">
+                            <div class="color-square"
+                                style="background-color: #ffa500;"></div>
+                            <span>Orange: Matches majority of adjacent tiles</span>
+                        </div>
+                        <div class="color-item">
+                            <div class="color-square"
+                                style="background-color: #ffffff;"></div>
+                            <span>White: Toggles itself and all neighbouring tiles between grey and white</span>
+                        </div>
+                        <div class="color-item">
+                            <div class="color-square"
+                                style="background-color: #4387d9;"></div>
+                            <span>Blue: Copies middle tile behaviour when clicked</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="sandbox-victory-modal" class="modal-overlay">
+            <div class="modal-content">
+                <h2>Puzzle Solved!</h2>
+                <p>Congratulations, you've matched all target corners in the Sandbox!</p>
+                <button id="sandbox-victory-reset-btn" class="button">Play Again (Reset All)</button>
+                <button id="sandbox-restart-puzzle-modal-btn" class="button button-secondary" style="margin-top: 10px;">Restart This Puzzle</button>
+            </div>
+        </div>
+
+        <div id="sandbox-loading-modal" class="modal-overlay">
+            <div class="modal-content loading-modal-content">
+                <h2 id="loading-modal-title">Asking Herbie for help...</h2>
+                <div class="spinner"></div>
+                <p id="loading-phrase" style="margin-top: 20px;">Mixing mischievous hues...</p>
+            </div>
+        </div>
+
+        <div id="sandbox-history-panel" class="history-panel" style="display: none;">
+            <h3>Puzzle History</h3>
+            <ul id="sandbox-history-list">
+            </ul>
+            <button id="sandbox-clear-history-btn" class="button button-small" style="display:none; margin-top: 10px;">Clear History</button>
+        </div>
+
+        <div class="toast-container"></div>
+    </body>
+</html>

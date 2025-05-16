@@ -1,0 +1,49 @@
+.input-group {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.input-group .text-input {
+    flex-grow: 1;
+}
+
+.input-hint {
+    font-size: 0.9em;
+    color: var(--text-secondary);
+    margin-top: 5px;
+}
+
+.results-container h2 {
+    color: var(--primary-color);
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.daily-note {
+    margin-bottom: 20px;
+    background-color: var(--secondary-color);
+}
+
+.daily-note p {
+    white-space: pre-wrap;
+    color: var(--text-primary);
+}
+
+.constellation-cards-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+}
+
+
+.constellation-card p {
+    white-space: pre-wrap;
+    font-size: 0.95em;
+    color: var(--text-secondary);
+}
+
+body>.container {
+    max-width: 900px;
+}

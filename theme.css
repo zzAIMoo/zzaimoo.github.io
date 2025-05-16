@@ -1,0 +1,351 @@
+:root {
+    /* Blue Prince Color */
+    --primary-color: #3fbdf8;
+    --primary-color-darker: #30a3d9;
+    /* Added for button hover */
+    --secondary-color: #122c44;
+    /* Using primary as accent for now */
+    --accent-color: #3fbdf8;
+    --background-main: #0a1929;
+    --background-card: #122c44;
+    --background-grid-area: #0e2033;
+    --text-primary: #e6f1ff;
+    --text-secondary: #a8b2d1;
+    --border-color: #233554;
+    --border-color-light: #304a69;
+    --shadow-color: rgba(2, 12, 27, 0.7);
+    --button-text-color: #ffffff;
+    --color-selected-border: var(--primary-color);
+    --color-cell-border: #2a4560;
+    --symbol-background: #1a324a;
+    --symbol-border: var(--border-color-light);
+    --symbol-text-color: var(--text-secondary);
+    --symbol-active-border: var(--primary-color);
+    --tab-inactive-bg: #0e2a40;
+    --tab-active-bg: var(--background-card);
+    --tab-text-color: var(--text-secondary);
+    --tab-active-text-color: var(--primary-color);
+    --notification-error-bg: #5D2A2A;
+    --notification-error-text: #FFC0C0;
+    --notification-success-bg: #2A5D34;
+    --notification-success-text: #C0FFC8;
+    --border-radius-medium: 8px;
+    --border-radius-large: 12px;
+    --primary-color-rgb: 63, 189, 248;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    margin: 0;
+    padding: 20px;
+    background-color: var(--background-main);
+    color: var(--text-primary);
+    line-height: 1.6;
+}
+
+.container {
+    max-width: 950px;
+    margin: 20px auto;
+    background-color: var(--background-card);
+    padding: 30px;
+    border-radius: 15px;
+    box-shadow: 0 8px 25px var(--shadow-color);
+    border: 1px solid var(--border-color);
+}
+
+h1 {
+    text-align: center;
+    margin-bottom: 30px;
+    color: var(--primary-color);
+    font-size: 2.5em;
+}
+
+/* General Button Styles */
+.button {
+    padding: 10px 15px;
+    font-size: 1em;
+    border: none;
+    border-radius: var(--border-radius-medium);
+    background-color: var(--primary-color);
+    color: var(--button-text-color);
+    cursor: pointer;
+    transition: background-color 0.2s ease, transform 0.1s ease;
+    text-align: center;
+    text-decoration: none;
+    /* For <a> tags styled as buttons */
+    display: inline-block;
+    /* For <a> tags */
+    min-width: 120px;
+    /* Basic min-width */
+}
+
+.button:hover {
+    background-color: var(--primary-color-darker);
+    transform: translateY(-1px);
+}
+
+.button:disabled,
+.button.disabled {
+    background-color: var(--border-color-light);
+    color: var(--text-secondary);
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+.button-secondary {
+    background-color: var(--secondary-color);
+    border: 1px solid var(--primary-color);
+    color: var(--primary-color);
+}
+
+.button-secondary:hover {
+    background-color: var(--border-color-light);
+    border-color: var(--primary-color-darker);
+    color: var(--primary-color-darker);
+}
+
+.button-small {
+    padding: 6px 12px;
+    font-size: 0.9em;
+    min-width: auto;
+}
+
+/* Modal Styles */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.7);
+    /* Darkened overlay slightly */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 2000;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
+}
+
+.modal-overlay.visible {
+    opacity: 1;
+    visibility: visible;
+}
+
+.modal-content {
+    background-color: var(--background-card);
+    padding: 30px 40px;
+    border-radius: var(--border-radius-medium);
+    /* Consistent border radius */
+    box-shadow: 0 10px 30px var(--shadow-color);
+    border: 1px solid var(--border-color);
+    text-align: center;
+    color: var(--text-primary);
+    max-width: 450px;
+    /* Slightly increased max-width */
+    width: 90%;
+    /* Ensure it fits on smaller screens */
+}
+
+.modal-content h2 {
+    color: var(--primary-color);
+    margin-top: 0;
+    margin-bottom: 15px;
+    font-size: 1.8em;
+}
+
+.modal-content p {
+    margin-bottom: 25px;
+    font-size: 1.1em;
+    line-height: 1.6;
+    color: var(--text-secondary);
+}
+
+.loading-modal-content {
+    padding: 40px;
+}
+
+.loading-modal-content h2 {
+    font-size: 1.6em;
+    margin-bottom: 25px;
+}
+
+.spinner {
+    width: 50px;
+    height: 50px;
+    border: 5px solid var(--border-color-light);
+    border-top-color: var(--primary-color);
+    border-radius: 50%;
+    margin: 0 auto 20px auto;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Toast Notification Styles */
+.toast-container {
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 3000;
+    display: flex;
+    flex-direction: column-reverse;
+    align-items: center;
+    gap: 10px;
+    pointer-events: none;
+}
+
+.toast {
+    min-width: 250px;
+    max-width: 400px;
+    padding: 15px 20px;
+    border-radius: var(--border-radius-medium);
+    color: var(--text-primary);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
+    pointer-events: all;
+}
+
+.toast.toast-fade-in {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.toast.toast-fade-out {
+    opacity: 0;
+    transform: translateY(10px);
+}
+
+.toast-message {
+    flex-grow: 1;
+    margin-right: 10px;
+}
+
+.toast-close-btn {
+    background: none;
+    border: none;
+    color: inherit;
+    font-size: 1.5em;
+    line-height: 1;
+    padding: 0 5px;
+    cursor: pointer;
+    opacity: 0.7;
+    transition: opacity 0.2s ease;
+}
+
+.toast-close-btn:hover {
+    opacity: 1;
+}
+
+.toast-info {
+    background-color: var(--secondary-color);
+    border: 1px solid var(--border-color-light);
+}
+
+.toast-success {
+    background-color: var(--notification-success-bg);
+    color: var(--notification-success-text);
+    border: 1px solid var(--notification-success-text);
+}
+
+.toast-error {
+    background-color: var(--notification-error-bg);
+    color: var(--notification-error-text);
+    border: 1px solid var(--notification-error-text);
+}
+
+/* Toggle Switch Styles */
+.toggle-switch {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    width: 40px;
+    height: 20px;
+    background-color: var(--border-color-light);
+    border-radius: 10px;
+    position: relative;
+    cursor: pointer;
+    outline: none;
+    transition: background-color 0.3s;
+    flex-shrink: 0;
+    /* Prevent shrinking in flex containers */
+}
+
+.toggle-switch::before {
+    content: '';
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background-color: white;
+    top: 2px;
+    left: 2px;
+    transition: transform 0.3s ease-in-out;
+}
+
+.toggle-switch:checked {
+    background-color: var(--primary-color);
+}
+
+.toggle-switch:checked::before {
+    transform: translateX(20px);
+}
+
+/* Card Styles */
+.card {
+    margin-bottom: 30px;
+    padding: 25px;
+    background-color: var(--background-card);
+    border-radius: var(--border-radius-large);
+    box-shadow: 0 6px 18px var(--shadow-color);
+    border: 1px solid var(--border-color);
+}
+
+.card-title {
+    margin-top: 0;
+    margin-bottom: 20px;
+    color: var(--primary-color);
+    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 10px;
+    font-size: 1.5em;
+}
+
+.text-input {
+    padding: 10px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-medium);
+    font-size: 1rem;
+    background-color: var(--input-bg-color);
+    color: var(--text-color);
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.text-input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px var(--primary-color-light);
+}
+
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+input[type=number] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+}
