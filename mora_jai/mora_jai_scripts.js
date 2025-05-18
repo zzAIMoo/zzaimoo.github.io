@@ -47,10 +47,14 @@ let loadingModalTitleElement = null;
 let sandboxTestSolveBtn = null;
 let spoilerFreeToggle = null;
 
+const MAX_STEPS = 50;
+const MAX_DEPTH_LIMIT = 50;
+const MAX_ITERATIONS = 500000;
+
 const difficultySettings = {
     1: { label: 'Easy', minSteps: 3, maxSteps: 6 },    // Trivial if < 6 steps
     2: { label: 'Medium', minSteps: 7, maxSteps: 10 }, // Trivial if < 7 steps
-    3: { label: 'Hard', minSteps: 11, maxSteps: 20 }   // Trivial if < 11 steps
+    3: { label: 'Hard', minSteps: 15, maxSteps: 40 }   // Trivial if < 11 steps
 };
 let currentDifficulty = difficultySettings[2];
 
@@ -600,8 +604,8 @@ function solvePuzzle() {
     const targetCornerIndices = { tl: 0, tr: 2, bl: 6, br: 8 };
     let solution = [];
     let visited = new Set();
-    const maxSteps = 100;
-    const maxIterations = 1000000;
+    const maxSteps = MAX_STEPS;
+    const maxIterations = MAX_ITERATIONS;
     let iterations = 0;
 
     function addToVisited(state) {
@@ -653,7 +657,7 @@ function solvePuzzle() {
 
     function idDfs() {
         let depthLimit = 1; // Start with a small depth limit
-        const maxDepthLimit = 30;//  Max depth for IDDFS; bigger number becomes slower
+        const maxDepthLimit = MAX_DEPTH_LIMIT;//  Max depth for IDDFS; bigger number becomes slower
 
         while (depthLimit <= maxDepthLimit && !stopSolving) {
             updateProgress(`Trying depth limit: ${depthLimit} (IDDFS)`);
@@ -1384,7 +1388,7 @@ function isPuzzleSolvable(gridToCheck, targetsToCheck, maxSolutionSteps, generat
     const targetCornerIndices = { tl: 0, tr: 2, bl: 6, br: 8 };
 
     let visited = new Set();
-    const maxSolverIterations = 500000;
+    const maxSolverIterations = MAX_ITERATIONS;
     let iterations = 0;
 
     function addToVisited(state) {
