@@ -58,7 +58,7 @@ The solver understands the following tile behaviors when a tile is activated:
 * **Yellow:** Moves itself one position up (swapping with the tile above it).
 * **Pink:** Rotates all 8 surrounding tiles (orthogonal and diagonal) clockwise. (Activated Pink tile is immune).
 * **Purple:** Moves itself one position down (swapping with the tile below it).
-* **Orange:** Changes its own color to match the majority color of its 4 orthogonally adjacent tiles (if a strict majority exists).
+* **Orange:** Changes its own color to match the most frequent unique color of its 4 orthogonally adjacent tiles (if one exists).
 * **White:**
   * Toggles itself and all neighbouring tiles between grey and white
 * **Blue:** Copies the function of the tile in the middle of the grid (index 4).

@@ -6,7 +6,7 @@ const colors = {
     yellow: { name: 'Yellow', hex: '#ffff00', function: 'Changes place with tile above' },
     pink: { name: 'Pink', hex: '#ff69b4', function: 'Rotates adjacent tiles clockwise' },
     purple: { name: 'Purple', hex: '#800080', function: 'Changes place with tile below' },
-    orange: { name: 'Orange', hex: '#ffa500', function: 'Matches majority of adjacent tiles' },
+    orange: { name: 'Orange', hex: '#ffa500', function: 'Matches most frequent unique adjacent color' },
     white: { name: 'White', hex: '#ffffff', function: 'Toggles itself and all neighbouring tiles between grey and white' },
     blue: { name: 'Blue', hex: '#4387d9', function: 'Copies middle tile behaviour when clicked' }
 };
@@ -33,7 +33,7 @@ const positionNotations = [
 ];
 
 const loadingPhrases = [
-    "Mora Jaiing stuff ...",
+    "Mora Jai-ing stuff ...",
     "Thinking really hard...",
     "Putting squares in circles...",
     "Woah colors are hard guys...",
@@ -48,9 +48,9 @@ let sandboxTestSolveBtn = null;
 let spoilerFreeToggle = null;
 
 const difficultySettings = {
-    1: { label: 'Easy', minSteps: 3, maxSteps: 5 },    // Trivial if < 3 steps
-    2: { label: 'Medium', minSteps: 5, maxSteps: 10 }, // Trivial if < 5 steps
-    3: { label: 'Hard', minSteps: 8, maxSteps: 15 }   // Trivial if < 8 steps
+    1: { label: 'Easy', minSteps: 3, maxSteps: 6 },    // Trivial if < 6 steps
+    2: { label: 'Medium', minSteps: 7, maxSteps: 10 }, // Trivial if < 7 steps
+    3: { label: 'Hard', minSteps: 11, maxSteps: 20 }   // Trivial if < 11 steps
 };
 let currentDifficulty = difficultySettings[2];
 
@@ -438,7 +438,7 @@ function performAction(state, index) {
                         tie = true;
                     }
                 }
-                if (!tie && majorityColor && maxCount > adjacent.length / 2) {
+                if (!tie && majorityColor && maxCount > 0) {
                     newState[index] = majorityColor;
                 }
             }
@@ -564,7 +564,7 @@ function performAction(state, index) {
                                 tie_o = true;
                             }
                         }
-                        if (!tie_o && maxCount_o > adjacent_o.length / 2) {
+                        if (!tie_o && majorityColor_o && maxCount_o > 0) {
                             tempStateForBlueAction[index] = majorityColor_o;
                         }
                     }
@@ -653,7 +653,7 @@ function solvePuzzle() {
 
     function idDfs() {
         let depthLimit = 1; // Start with a small depth limit
-        const maxDepthLimit = 15; // Sensible max depth for puzzle boxes ig
+        const maxDepthLimit = 30;//  Max depth for IDDFS; bigger number becomes slower
 
         while (depthLimit <= maxDepthLimit && !stopSolving) {
             updateProgress(`Trying depth limit: ${depthLimit} (IDDFS)`);
@@ -865,7 +865,7 @@ function initSandbox() {
     initSandboxColorPalette();
     initSandboxEventListeners();
     updateSandboxCornerSymbolsDisplay();
-    renderSandboxGrid(); // Initial render
+    renderSandboxGrid();
 }
 
 function initSandboxGrid() {
@@ -1114,7 +1114,7 @@ function seededRandom() {
     }
     const a = 1664525;
     const c = 1013904223;
-    const m = Math.pow(2, 32); // 2^32
+    const m = Math.pow(2, 32);
     currentSeed = (a * currentSeed + c) % m;
     return currentSeed / m;
 }
@@ -1128,7 +1128,7 @@ function showLoadingModal(initialPhrase) {
     if (!loadingPhraseElement) loadingPhraseElement = document.getElementById('loading-phrase');
 
     if (loadingModalElement && loadingPhraseElement) {
-        loadingPhraseElement.textContent = initialPhrase || loadingPhrases[Math.floor(Math.random() * loadingPhrases.length)];
+        loadingPhraseElement.textContent = loadingPhrases[Math.floor(Math.random() * loadingPhrases.length)];
         loadingModalElement.classList.add('visible');
     }
 }
@@ -1191,7 +1191,7 @@ function generateRandomSandboxPuzzle(userSeed) {
 
     const { minSteps: minSolutionSteps, maxSteps: maxSolutionStepsForGeneration } = currentDifficulty;
 
-    showLoadingModal(`Searching for a ${currentDifficulty.label.toLowerCase()} puzzle...`);
+    showLoadingModal(`Creating a ${currentDifficulty.label.toLowerCase()} puzzle...`);
 
     const MAX_GENERATION_ATTEMPTS = 100;
     let attempts = 0;
@@ -1913,7 +1913,7 @@ function initSolutionStepSpoilers(containerId) {
     container.addEventListener('keydown', function (event) {
         const spoiler = event.target.closest('.solution-step-spoiler');
         if (spoiler && (event.key === 'Enter' || event.key === ' ')) {
-            event.preventDefault(); // Prevent page scroll on Spacebar
+            event.preventDefault();
             spoiler.click();
         }
     });

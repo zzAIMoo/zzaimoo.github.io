@@ -60,7 +60,6 @@ h1 {
     font-size: 2.5em;
 }
 
-/* General Button Styles */
 .button {
     padding: 10px 15px;
     font-size: 1em;
@@ -111,7 +110,6 @@ h1 {
     min-width: auto;
 }
 
-/* Modal Styles */
 .modal-overlay {
     position: fixed;
     top: 0;
@@ -119,7 +117,6 @@ h1 {
     width: 100%;
     height: 100%;
     background-color: rgba(0, 0, 0, 0.7);
-    /* Darkened overlay slightly */
     display: flex;
     justify-content: center;
     align-items: center;
@@ -138,15 +135,12 @@ h1 {
     background-color: var(--background-card);
     padding: 30px 40px;
     border-radius: var(--border-radius-medium);
-    /* Consistent border radius */
     box-shadow: 0 10px 30px var(--shadow-color);
     border: 1px solid var(--border-color);
     text-align: center;
     color: var(--text-primary);
     max-width: 450px;
-    /* Slightly increased max-width */
     width: 90%;
-    /* Ensure it fits on smaller screens */
 }
 
 .modal-content h2 {
@@ -188,7 +182,6 @@ h1 {
     }
 }
 
-/* Toast Notification Styles */
 .toast-container {
     position: fixed;
     bottom: 20px;
@@ -266,7 +259,6 @@ h1 {
     border: 1px solid var(--notification-error-text);
 }
 
-/* Toggle Switch Styles */
 .toggle-switch {
     appearance: none;
     -webkit-appearance: none;
@@ -280,7 +272,6 @@ h1 {
     outline: none;
     transition: background-color 0.3s;
     flex-shrink: 0;
-    /* Prevent shrinking in flex containers */
 }
 
 .toggle-switch::before {
@@ -303,7 +294,6 @@ h1 {
     transform: translateX(20px);
 }
 
-/* Card Styles */
 .card {
     margin-bottom: 30px;
     padding: 25px;
