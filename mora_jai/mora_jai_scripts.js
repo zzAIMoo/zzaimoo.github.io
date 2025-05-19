@@ -33,7 +33,7 @@ const positionNotations = [
 ];
 
 const loadingPhrases = [
-    "Mora Jai-ing stuff ...",
+    "Mora Jai-ing stuff...",
     "Thinking really hard...",
     "Putting squares in circles...",
     "Woah colors are hard guys...",
@@ -46,15 +46,16 @@ let loadingPhraseElement = null;
 let loadingModalTitleElement = null;
 let sandboxTestSolveBtn = null;
 let spoilerFreeToggle = null;
+let loadingTitleIntervalId = null;
 
-const MAX_STEPS = 50;
-const MAX_DEPTH_LIMIT = 50;
-const MAX_ITERATIONS = 500000;
+let currentSolverWorker = null;
+let currentGeneratorWorker = null;
 
 const difficultySettings = {
-    1: { label: 'Easy', minSteps: 3, maxSteps: 6 },    // Trivial if < 6 steps
-    2: { label: 'Medium', minSteps: 7, maxSteps: 10 }, // Trivial if < 7 steps
-    3: { label: 'Hard', minSteps: 15, maxSteps: 40 }   // Trivial if < 11 steps
+    1: { label: 'Easy', minSteps: 3, maxSteps: 6 },
+    2: { label: 'Medium', minSteps: 7, maxSteps: 10 },
+    3: { label: 'Hard', minSteps: 15, maxSteps: 40 },
+    4: { label: 'Impossible', minSteps: 30, maxSteps: 60 }
 };
 let currentDifficulty = difficultySettings[2];
 
@@ -68,6 +69,7 @@ document.addEventListener('DOMContentLoaded', function () {
     updateCornerSymbolsDisplay();
     initSandbox();
     initDifficultySlider();
+    initGeneratorWorker();
     const victoryModalResetBtn = document.getElementById('sandbox-victory-reset-btn');
     if (victoryModalResetBtn) {
         victoryModalResetBtn.addEventListener('click', function () {
@@ -86,12 +88,33 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    const cancelGenerationBtn = document.getElementById('cancel-generation-btn');
+    if (cancelGenerationBtn) {
+        console.log("[Main] Attaching event listener to cancel-generation-btn.");
+        cancelGenerationBtn.addEventListener('click', function () {
+            console.log("[Main] Cancel button clicked.");
+            if (currentGeneratorWorker) {
+                console.log("[Main] currentGeneratorWorker exists. Terminating worker.");
+                currentGeneratorWorker.terminate();
+                currentGeneratorWorker = null;
+                console.log("[Main] Generator Worker terminated. Will re-initialize on next request or if init is called.");
+            } else {
+                console.error("[Main] currentGeneratorWorker is null or undefined. Cannot terminate.");
+            }
+            hideLoadingModal();
+            showNotification("Puzzle generation cancelled by user.", "info");
+        });
+    } else {
+        console.error("[Main] cancel-generation-btn not found in DOM.");
+    }
+
     populateSandboxHistoryUI();
     initClearHistoryButton();
     checkInitialSandboxStateForModal();
     initSpoilerMode();
     initSolutionStepSpoilers('solution-output');
     initSolutionStepSpoilers('sandbox-solution-display');
+    animateCardsInActiveTab();
 });
 
 function initGrid() {
@@ -103,6 +126,14 @@ function initGrid() {
         cell.dataset.index = i;
         cell.style.backgroundColor = colors.gray.hex;
         gridElement.appendChild(cell);
+    }
+    const initialActiveTab = document.querySelector('.tab.active');
+    if (initialActiveTab && initialActiveTab.dataset.tab === 'sandbox') {
+        const historyPanel = document.getElementById('sandbox-history-panel');
+        if (historyPanel) {
+            historyPanel.style.display = 'flex';
+            adjustHistoryPanelHeight();
+        }
     }
 }
 
@@ -255,19 +286,70 @@ function initEventListeners() {
 
     document.getElementById('solve-btn').addEventListener('click', async function () {
         if (solvingInProgress) return;
+        if (!validateInputs()) {
+            return;
+        }
+
         solvingInProgress = true;
-        stopSolving = false;
         document.getElementById('solve-btn').disabled = true;
         document.getElementById('stop-btn').disabled = false;
+        document.getElementById('solution-output').innerHTML = '<p>Initializing solver worker...</p>';
+
+        if (currentSolverWorker) {
+            currentSolverWorker.terminate();
+        }
+        currentSolverWorker = new Worker('solver_worker.js');
+
+        currentSolverWorker.postMessage({
+            type: 'start',
+            data: {
+                initialGrid: [...grid],
+                targetCorners: { ...targetCorners }
+            }
+        });
+
         document.getElementById('solution-output').innerHTML = '<p>Solving puzzle... This may take a moment.</p>';
-        setTimeout(() => {
-            solvePuzzle();
-        }, 100);
+
+        currentSolverWorker.onmessage = function (e) {
+            const { type, data, message } = e.data;
+            if (type === 'progress') {
+                updateProgressUI(message);
+            } else if (type === 'result') {
+                console.log("[Main] Worker Result:", data);
+                displaySolution(data);
+                solvingInProgress = false;
+                document.getElementById('solve-btn').disabled = false;
+                document.getElementById('stop-btn').disabled = true;
+                if (currentSolverWorker) {
+                    currentSolverWorker.terminate();
+                    currentSolverWorker = null;
+                }
+            }
+        };
+
+        currentSolverWorker.onerror = function (error) {
+            console.error("Solver worker error:", error);
+            document.getElementById('solution-output').innerHTML = `
+                <div class="solution-step">
+                    <h3>Error Occurred in Solver Worker</h3>
+                    <p>${error.message || 'Unknown worker error'}</p>
+                </div>
+            `;
+            solvingInProgress = false;
+            document.getElementById('solve-btn').disabled = false;
+            document.getElementById('stop-btn').disabled = true;
+            if (currentSolverWorker) {
+                currentSolverWorker.terminate();
+                currentSolverWorker = null;
+            }
+        };
     });
 
     document.getElementById('stop-btn').addEventListener('click', function () {
-        stopSolving = true;
-        showNotification('Stopping solver...', 'error');
+        if (currentSolverWorker) {
+            currentSolverWorker.postMessage({ type: 'stop' });
+            showNotification('Stopping solver... worker will terminate after current check.', 'info');
+        }
     });
 
     document.getElementById('toggle-notation-btn').addEventListener('click', function () {
@@ -354,415 +436,66 @@ function showNotification(message, type = 'info', duration = 3000) {
     });
 }
 
-function performAction(state, index) {
-    const color = state[index];
-    let newState = [...state];
-    const rows = 3;
-    const cols = 3;
-    const row = Math.floor(index / cols);
-    const col = index % cols;
-
-    switch (color) {
-        case 'gray':
-            break;
-        case 'black':
-            const rowStart = rows * row;
-            const rowEnd = rows * (row + 1);
-            const lastTileInRow = newState[rowEnd - 1];
-            for (let i = rowEnd - 1; i > rowStart; i--) {
-                newState[i] = newState[i - 1];
-            }
-            newState[rowStart] = lastTileInRow;
-            break;
-        case 'red':
-            for (let i = 0; i < newState.length; i++) {
-                if (newState[i] === 'white') newState[i] = 'black';
-                else if (newState[i] === 'black') newState[i] = 'red';
-            }
-            break;
-        case 'green':
-            const oppositeRow = rows - 1 - row;
-            const oppositeCol = cols - 1 - col;
-            const oppositeIndex = oppositeRow * cols + oppositeCol;
-            [newState[index], newState[oppositeIndex]] = [newState[oppositeIndex], newState[index]];
-            break;
-        case 'yellow':
-            if (row > 0) {
-                const upIndex = (row - 1) * cols + col;
-                [newState[index], newState[upIndex]] = [newState[upIndex], newState[index]];
-            }
-            break;
-        case 'pink':
-            const surroundingPositions = [];
-            if (row > 0 && col > 0) surroundingPositions.push({ r: row - 1, c: col - 1 });
-            if (row > 0) surroundingPositions.push({ r: row - 1, c: col });
-            if (row > 0 && col < cols - 1) surroundingPositions.push({ r: row - 1, c: col + 1 });
-            if (col < cols - 1) surroundingPositions.push({ r: row, c: col + 1 });
-            if (row < rows - 1 && col < cols - 1) surroundingPositions.push({ r: row + 1, c: col + 1 });
-            if (row < rows - 1) surroundingPositions.push({ r: row + 1, c: col });
-            if (row < rows - 1 && col > 0) surroundingPositions.push({ r: row + 1, c: col - 1 });
-            if (col > 0) surroundingPositions.push({ r: row, c: col - 1 });
-            if (surroundingPositions.length > 0) {
-                const positions = surroundingPositions.map(pos => pos.r * cols + pos.c);
-                const lastColor = newState[positions[positions.length - 1]];
-                for (let i = positions.length - 1; i > 0; i--) {
-                    newState[positions[i]] = newState[positions[i - 1]];
-                }
-                if (positions.length > 0) {
-                    newState[positions[0]] = lastColor;
-                }
-            }
-            break;
-        case 'purple':
-            if (row < rows - 1) {
-                const downIndex = (row + 1) * cols + col;
-                [newState[index], newState[downIndex]] = [newState[downIndex], newState[index]];
-            }
-            break;
-        case 'orange':
-            const adjacent = [];
-            if (row > 0) adjacent.push(newState[(row - 1) * cols + col]);
-            if (col < cols - 1) adjacent.push(newState[row * cols + (col + 1)]);
-            if (row < rows - 1) adjacent.push(newState[(row + 1) * cols + col]);
-            if (col > 0) adjacent.push(newState[row * cols + (col - 1)]);
-            if (adjacent.length > 0) {
-                const colorCounts = {};
-                for (const adjColor of adjacent) {
-                    colorCounts[adjColor] = (colorCounts[adjColor] || 0) + 1;
-                }
-                let majorityColor = null;
-                let maxCount = 0;
-                let tie = false;
-                for (const [c, count] of Object.entries(colorCounts)) {
-                    if (count > maxCount) {
-                        maxCount = count;
-                        majorityColor = c;
-                        tie = false;
-                    } else if (count === maxCount) {
-                        tie = true;
-                    }
-                }
-                if (!tie && majorityColor && maxCount > 0) {
-                    newState[index] = majorityColor;
-                }
-            }
-            break;
-        case 'white':
-            const initialNeighborStates = [];
-            if (row > 0) initialNeighborStates.push({ idx: (row - 1) * cols + col, color: newState[(row - 1) * cols + col] });
-            if (col < cols - 1) initialNeighborStates.push({ idx: row * cols + (col + 1), color: newState[row * cols + (col + 1)] });
-            if (row < rows - 1) initialNeighborStates.push({ idx: (row + 1) * cols + col, color: newState[(row + 1) * cols + col] });
-            if (col > 0) initialNeighborStates.push({ idx: row * cols + (col - 1), color: newState[row * cols + (col - 1)] });
-
-            for (const neighbor of initialNeighborStates) {
-                if (neighbor.color === 'gray') {
-                    newState[neighbor.idx] = 'white';
-                } else if (neighbor.color === 'white') {
-                    newState[neighbor.idx] = 'gray';
-                }
-            }
-            newState[index] = 'gray';
-            break;
-        case 'blue':
-            const middleIndex = 4;
-            const middleColorAction = newState[middleIndex];
-            let tempStateForBlueAction = [...newState];
-
-            switch (middleColorAction) {
-                case 'gray':
-                    break;
-                case 'black':
-                    const activeBlueRow_b = row;
-                    const originalBlueCol_b = col;
-                    const rowOriginalColors_b = [];
-                    for (let c_idx = 0; c_idx < cols; c_idx++) {
-                        rowOriginalColors_b.push(tempStateForBlueAction[activeBlueRow_b * cols + c_idx]);
-                    }
-                    const rowShiftedColors_b = [];
-                    rowShiftedColors_b[0] = rowOriginalColors_b[cols - 1];
-                    for (let c_idx = 1; c_idx < cols; c_idx++) {
-                        rowShiftedColors_b[c_idx] = rowOriginalColors_b[c_idx - 1];
-                    }
-                    const blueTileNewColInRow_b = (originalBlueCol_b + 1) % cols;
-                    for (let c_idx = 0; c_idx < cols; c_idx++) {
-                        const currentIndexInRow_b = activeBlueRow_b * cols + c_idx;
-                        if (c_idx === blueTileNewColInRow_b) {
-                            tempStateForBlueAction[currentIndexInRow_b] = 'blue';
-                        } else {
-                            tempStateForBlueAction[currentIndexInRow_b] = rowShiftedColors_b[c_idx];
-                        }
-                    }
-                    break;
-                case 'red':
-                    for (let i = 0; i < tempStateForBlueAction.length; i++) {
-                        if (i === index) continue;
-                        if (tempStateForBlueAction[i] === 'white') tempStateForBlueAction[i] = 'black';
-                        else if (tempStateForBlueAction[i] === 'black') tempStateForBlueAction[i] = 'red';
-                    }
-                    break;
-                case 'green':
-                    const oppositeRow_g = rows - 1 - row;
-                    const oppositeCol_g = cols - 1 - col;
-                    const oppositeIndex_g = oppositeRow_g * cols + oppositeCol_g;
-                    if (index !== oppositeIndex_g) {
-                        const colorAtOpposite_g = tempStateForBlueAction[oppositeIndex_g];
-                        tempStateForBlueAction[oppositeIndex_g] = 'blue';
-                        tempStateForBlueAction[index] = colorAtOpposite_g;
-                    }
-                    break;
-                case 'yellow':
-                    if (row > 0) {
-                        const upIndex_y = (row - 1) * cols + col;
-                        const colorAbove_y = tempStateForBlueAction[upIndex_y];
-                        tempStateForBlueAction[upIndex_y] = 'blue';
-                        tempStateForBlueAction[index] = colorAbove_y;
-                    }
-                    break;
-                case 'pink':
-                    const surroundingPositions_pi = [];
-                    if (row > 0 && col > 0) surroundingPositions_pi.push({ r: row - 1, c: col - 1 });
-                    if (row > 0) surroundingPositions_pi.push({ r: row - 1, c: col });
-                    if (row > 0 && col < cols - 1) surroundingPositions_pi.push({ r: row - 1, c: col + 1 });
-                    if (col < cols - 1) surroundingPositions_pi.push({ r: row, c: col + 1 });
-                    if (row < rows - 1 && col < cols - 1) surroundingPositions_pi.push({ r: row + 1, c: col + 1 });
-                    if (row < rows - 1) surroundingPositions_pi.push({ r: row + 1, c: col });
-                    if (row < rows - 1 && col > 0) surroundingPositions_pi.push({ r: row + 1, c: col - 1 });
-                    if (col > 0) surroundingPositions_pi.push({ r: row, c: col - 1 });
-                    if (surroundingPositions_pi.length > 0) {
-                        const indicesToRotate_pi = surroundingPositions_pi.map(pos => pos.r * cols + pos.c);
-                        const lastColorInRotation_pi = tempStateForBlueAction[indicesToRotate_pi[indicesToRotate_pi.length - 1]];
-                        for (let i = indicesToRotate_pi.length - 1; i > 0; i--) {
-                            tempStateForBlueAction[indicesToRotate_pi[i]] = tempStateForBlueAction[indicesToRotate_pi[i - 1]];
-                        }
-                        if (indicesToRotate_pi.length > 0) {
-                            tempStateForBlueAction[indicesToRotate_pi[0]] = lastColorInRotation_pi;
-                        }
-                    }
-                    break;
-                case 'purple':
-                    if (row < rows - 1) {
-                        const downIndex_pu = (row + 1) * cols + col;
-                        const colorBelow_pu = tempStateForBlueAction[downIndex_pu];
-                        tempStateForBlueAction[downIndex_pu] = 'blue';
-                        tempStateForBlueAction[index] = colorBelow_pu;
-                    }
-                    break;
-                case 'orange':
-                    const adjacent_o = [];
-                    if (row > 0) adjacent_o.push(tempStateForBlueAction[(row - 1) * cols + col]);
-                    if (col < cols - 1) adjacent_o.push(tempStateForBlueAction[row * cols + (col + 1)]);
-                    if (row < rows - 1) adjacent_o.push(tempStateForBlueAction[(row + 1) * cols + col]);
-                    if (col > 0) adjacent_o.push(tempStateForBlueAction[row * cols + (col - 1)]);
-                    if (adjacent_o.length > 0) {
-                        const colorCounts_o = {};
-                        adjacent_o.forEach(adjColor => { colorCounts_o[adjColor] = (colorCounts_o[adjColor] || 0) + 1; });
-                        let majorityColor_o = tempStateForBlueAction[index];
-                        let maxCount_o = 0;
-                        let tie_o = false;
-                        for (const [c, count] of Object.entries(colorCounts_o)) {
-                            if (count > maxCount_o) {
-                                maxCount_o = count;
-                                majorityColor_o = c;
-                                tie_o = false;
-                            } else if (count === maxCount_o) {
-                                tie_o = true;
-                            }
-                        }
-                        if (!tie_o && majorityColor_o && maxCount_o > 0) {
-                            tempStateForBlueAction[index] = majorityColor_o;
-                        }
-                    }
-                    break;
-                case 'white':
-                    const blueInitialNeighborStates = [];
-                    if (row > 0) blueInitialNeighborStates.push({ idx: (row - 1) * cols + col, color: tempStateForBlueAction[(row - 1) * cols + col] });
-                    if (col < cols - 1) blueInitialNeighborStates.push({ idx: row * cols + (col + 1), color: tempStateForBlueAction[row * cols + (col + 1)] });
-                    if (row < rows - 1) blueInitialNeighborStates.push({ idx: (row + 1) * cols + col, color: tempStateForBlueAction[(row + 1) * cols + col] });
-                    if (col > 0) blueInitialNeighborStates.push({ idx: row * cols + (col - 1), color: tempStateForBlueAction[row * cols + (col - 1)] });
-
-                    for (const neighbor of blueInitialNeighborStates) {
-                        if (neighbor.color === 'gray') {
-                            tempStateForBlueAction[neighbor.idx] = 'blue';
-                        } else if (neighbor.color === 'white' || neighbor.color === 'blue') {
-                            tempStateForBlueAction[neighbor.idx] = 'gray';
-                        }
-                    }
-                    tempStateForBlueAction[index] = 'gray';
-                    break;
-                case 'blue':
-                    break;
-            }
-            newState = tempStateForBlueAction;
-            break;
-    }
-    return newState;
-}
-
-function solvePuzzle() {
-    const startTime = performance.now();
-    const initialState = [...grid];
-    const targetCornerIndices = { tl: 0, tr: 2, bl: 6, br: 8 };
-    let solution = [];
-    let visited = new Set();
-    const maxSteps = MAX_STEPS;
-    const maxIterations = MAX_ITERATIONS;
-    let iterations = 0;
-
-    function addToVisited(state) {
-        visited.add(JSON.stringify(state));
-    }
-
-    function isVisited(state) {
-        return visited.has(JSON.stringify(state));
-    }
-
-    function isSolved(state) {
-        return state[targetCornerIndices.tl] === targetCorners.tl &&
-            state[targetCornerIndices.tr] === targetCorners.tr &&
-            state[targetCornerIndices.bl] === targetCorners.bl &&
-            state[targetCornerIndices.br] === targetCorners.br;
-    }
-
-    function bfs() {
-        const queue = [{ state: initialState, path: [] }];
-        addToVisited(initialState);
-        while (queue.length > 0 && !stopSolving) {
-            iterations++;
-            if (iterations > maxIterations) {
-                return { solved: false, reason: 'Exceeded maximum iterations' };
-            }
-            const { state, path } = queue.shift();
-            if (isSolved(state)) {
-                return { solved: true, path };
-            }
-            if (path.length >= maxSteps) {
-                continue;
-            }
-            for (let i = 0; i < 9; i++) {
-                const newState = performAction(state, i);
-                if (!isVisited(newState)) {
-                    addToVisited(newState);
-                    queue.push({
-                        state: newState,
-                        path: [...path, { index: i, color: state[i], triggeredBy: state[i] }]
-                    });
-                }
-            }
-            if (iterations % 10000 === 0) {
-                updateProgress(`Searching (BFS)... ${iterations.toLocaleString()} iterations, ${queue.length.toLocaleString()} states`);
-            }
-        }
-        return { solved: false, reason: 'BFS exhausted or stopped' };
-    }
-
-    function idDfs() {
-        let depthLimit = 1; // Start with a small depth limit
-        const maxDepthLimit = MAX_DEPTH_LIMIT;//  Max depth for IDDFS; bigger number becomes slower
-
-        while (depthLimit <= maxDepthLimit && !stopSolving) {
-            updateProgress(`Trying depth limit: ${depthLimit} (IDDFS)`);
-            visited = new Set();
-            iterations = 0;
-            const result = dfsLimited(initialState, [], 0, depthLimit);
-            if (result.solved) {
-                return result;
-            }
-            depthLimit++;
-        }
-        return { solved: false, reason: `No solution within ${maxDepthLimit} steps (IDDFS)` };
-    }
-
-    function dfsLimited(state, path, depth, maxDepth) {
-        iterations++;
-        if (iterations > maxIterations) {
-            return { solved: false, reason: 'Exceeded maximum iterations' };
-        }
-        if (stopSolving) {
-            return { solved: false, reason: 'Solving stopped by user' };
-        }
-        if (isSolved(state)) {
-            return { solved: true, path };
-        }
-        if (depth >= maxDepth) {
-            return { solved: false, reason: 'Depth limit reached' };
-        }
-        if (iterations % 20000 === 0 && !stopSolving) {
-            updateProgress(`Searching depth ${depth}/${maxDepth}... (${iterations.toLocaleString()} iterations)`);
-        }
-
-        for (let i = 0; i < 9; i++) {
-            const originalTileColor = state[i];
-            const newState = performAction(state, i);
-            const stateKey = JSON.stringify(newState);
-            if (!visited.has(stateKey)) {
-                visited.add(stateKey);
-                const result = dfsLimited(newState, [...path, { index: i, color: originalTileColor, triggeredBy: originalTileColor }], depth + 1, maxDepth);
-                if (result.solved) {
-                    return result;
-                }
-            }
-        }
-        return { solved: false };
-    }
-
-    function updateProgress(message) {
-        const solutionOutput = document.getElementById('solution-output');
+function updateProgressUI(message) {
+    const solutionOutput = document.getElementById('solution-output');
+    if (solutionOutput) {
         solutionOutput.innerHTML = `<p style="color: var(--text-secondary);">${message}</p>`;
     }
+}
 
-    let lastSolutionResult = null;
+function displaySolution(result) {
+    const solutionOutput = document.getElementById('solution-output');
 
-    function displaySolution(result) {
-        lastSolutionResult = result;
-        const solutionOutput = document.getElementById('solution-output');
-        const endTime = performance.now();
-        const timeTaken = ((endTime - startTime) / 1000).toFixed(2);
+    const timeTaken = result.time !== undefined ? result.time.toFixed(2) : 'N/A';
+    const iterationsDisplay = result.iterations !== undefined ? result.iterations.toLocaleString() : 'N/A';
 
-        if (!result.solved) {
-            solutionOutput.innerHTML = `
+    if (!result.solved) {
+        solutionOutput.innerHTML = `
                 <div class="solution-step">
                     <h3>No Solution Found</h3>
                     <p>Reason: ${result.reason || 'Unknown'}</p>
-                    <p>Total Iterations (last attempt): ${iterations.toLocaleString()}</p>
+                <p>Total Iterations: ${iterationsDisplay}</p>
                     <p>Time: ${timeTaken} seconds</p>
                 </div>
             `;
-            return;
-        }
+        return;
+    }
 
-        let html = `
+    lastSolutionResult = result;
+
+    let html = `
             <div class="solution-step">
                 <h3>Solution Found!</h3>
                 <p>Steps: ${result.path.length}</p>
-                <p>Total Iterations (last attempt): ${iterations.toLocaleString()}</p>
+            <p>Total Iterations: ${iterationsDisplay}</p>
                 <p>Time: ${timeTaken} seconds</p>
             </div>
         `;
 
-        let stepsInteractiveHtml = '<div class="solution-steps-interactive-container">';
-        result.path.forEach((step, i) => {
-            const stepText = `(${getPositionNotation(step.index)} - ${colors[step.triggeredBy].name})`;
-            stepsInteractiveHtml += `
+    let stepsInteractiveHtml = '<div class="solution-steps-interactive-container">';
+    result.path.forEach((step, i) => {
+        const stepText = `(${getPositionNotation(step.index)} - ${colors[step.triggeredBy] ? colors[step.triggeredBy].name : step.triggeredBy})`;
+        stepsInteractiveHtml += `
                 <div class="solution-step-spoiler" role="button" tabindex="0" aria-pressed="false" aria-label="Reveal step ${i + 1}">
                     <span class="spoiler-placeholder">[Step ${i + 1}]</span>
                     <span class="spoiler-content">${stepText}</span>
                 </div>
             `;
-            if (i < result.path.length - 1) {
-                stepsInteractiveHtml += '<span class="solution-step-arrow">→</span>';
-            }
-        });
-        stepsInteractiveHtml += '</div>';
+        if (i < result.path.length - 1) {
+            stepsInteractiveHtml += '<span class="solution-step-arrow">→</span>';
+        }
+    });
+    stepsInteractiveHtml += '</div>';
 
-        html += `
+    html += `
             <div class="solution-step">
                 <h4>Press Tiles in This Order (click to reveal):</h4>
                 ${stepsInteractiveHtml}
             </div>
         `;
 
-        let currentDisplayState = [...initialState];
-        html += `
+    let currentDisplayState = [...grid];
+    html += `
             <div class="solution-step">
                 <h4>Initial State</h4>
                 <div class="grid-representation">
@@ -773,16 +506,17 @@ function solvePuzzle() {
             </div>
         `;
 
-        result.path.forEach((step, i) => {
-            const { index, color, triggeredBy } = step;
-            const positionNotation = getPositionNotation(index);
-            let stateBeforeMove = [...currentDisplayState];
-            currentDisplayState = performAction(currentDisplayState, index);
+    result.path.forEach((step, i) => {
+        const { index, color, triggeredBy } = step;
+        const positionNotation = getPositionNotation(index);
+        let stateBeforeMove = [...currentDisplayState];
 
-            html += `
+        currentDisplayState = performAction(currentDisplayState, index);
+
+        html += `
                 <div class="solution-step">
-                    <h4>Step ${i + 1}: Activate ${colors[triggeredBy].name} at ${positionNotation}</h4>
-                    <p><strong>Effect:</strong> ${colors[triggeredBy].function}</p>
+                <h4>Step ${i + 1}: Activate ${colors[triggeredBy] ? colors[triggeredBy].name : triggeredBy} at ${positionNotation}</h4>
+                <p><strong>Effect:</strong> ${colors[triggeredBy] ? colors[triggeredBy].function : 'N/A'}</p>
 
                     <p style="margin-top:10px;">State Before:</p>
                     <div class="grid-representation">
@@ -792,40 +526,15 @@ function solvePuzzle() {
                     </div>
                     <p style="margin-top:10px;">State After:</p>
                     <div class="grid-representation">
-                        ${currentDisplayState.map(color => `
-                            <div style="background-color: ${colors[color].hex};"></div>
+                    ${currentDisplayState.map(c => `
+                        <div style="background-color: ${colors[c].hex};"></div>
                         `).join('')}
                     </div>
                 </div>
             `;
-        });
-        solutionOutput.innerHTML = html;
-    }
+    });
 
-    const runSolve = async () => {
-        try {
-            updateProgress("Trying BFS for simple solutions (up to ~7 steps)...");
-            let result = bfs();
-            if (!result.solved && !stopSolving) {
-                updateProgress("BFS exhausted or too complex. Switching to Iterative Deepening DFS...");
-                result = idDfs();
-            }
-            displaySolution(result);
-        } catch (error) {
-            console.error("Solver error:", error);
-            document.getElementById('solution-output').innerHTML = `
-                <div class="solution-step">
-                    <h3>Error Occurred During Solving</h3>
-                    <p>${error.message}</p>
-                </div>
-            `;
-        } finally {
-            solvingInProgress = false;
-            document.getElementById('solve-btn').disabled = false;
-            document.getElementById('stop-btn').disabled = true;
-        }
-    };
-    runSolve();
+    solutionOutput.innerHTML = html;
 }
 
 function getPositionNotation(index) {
@@ -960,7 +669,7 @@ function initSandboxEventListeners() {
             }
 
             console.log(`[Sandbox] Attempting to load puzzle with user-provided seed: ${seedAsNumber}`);
-            generateRandomSandboxPuzzle(seedAsNumber);
+            requestPuzzleGenerationFromWorker(seedAsNumber);
             seedInput.value = '';
         });
     }
@@ -1071,7 +780,7 @@ function initSandboxEventListeners() {
 
     if (generateRandomSandboxPuzzleBtn) {
         generateRandomSandboxPuzzleBtn.addEventListener('click', function () {
-            generateRandomSandboxPuzzle();
+            requestPuzzleGenerationFromWorker();
         });
     }
 
@@ -1110,40 +819,50 @@ function validateSandboxTargets() {
     return true;
 }
 
-let currentSeed = null;
-
-function seededRandom() {
-    if (currentSeed === null) {
-        currentSeed = Date.now();
-    }
-    const a = 1664525;
-    const c = 1013904223;
-    const m = Math.pow(2, 32);
-    currentSeed = (a * currentSeed + c) % m;
-    return currentSeed / m;
-}
-
-function setSeed(seed) {
-    currentSeed = seed;
-}
-
-function showLoadingModal(initialPhrase) {
+function showLoadingModal(initialPhrase, title) {
     if (!loadingModalElement) loadingModalElement = document.getElementById('sandbox-loading-modal');
     if (!loadingPhraseElement) loadingPhraseElement = document.getElementById('loading-phrase');
+    if (!loadingModalTitleElement) loadingModalTitleElement = document.getElementById('loading-modal-title');
 
-    if (loadingModalElement && loadingPhraseElement) {
-        loadingPhraseElement.textContent = loadingPhrases[Math.floor(Math.random() * loadingPhrases.length)];
+    if (loadingModalElement && loadingPhraseElement && loadingModalTitleElement) {
+        if (loadingTitleIntervalId) {
+            clearInterval(loadingTitleIntervalId);
+            loadingTitleIntervalId = null;
+        }
+
+        loadingModalTitleElement.style.opacity = '0';
+        setTimeout(() => {
+            loadingModalTitleElement.textContent = loadingPhrases[Math.floor(Math.random() * loadingPhrases.length)];
+            loadingModalTitleElement.style.opacity = '1';
+        }, 50);
+
+        loadingTitleIntervalId = setInterval(() => {
+            if (loadingModalTitleElement && loadingModalElement.classList.contains('visible')) {
+                loadingModalTitleElement.style.opacity = '0';
+                setTimeout(() => {
+                    loadingModalTitleElement.textContent = loadingPhrases[Math.floor(Math.random() * loadingPhrases.length)];
+                    loadingModalTitleElement.style.opacity = '1';
+                }, 250);
+            }
+        }, 2800);
+
+        loadingPhraseElement.textContent = initialPhrase || loadingPhrases[Math.floor(Math.random() * loadingPhrases.length)];
+
         loadingModalElement.classList.add('visible');
     }
 }
 
-function updateLoadingPhrase() {
-    if (loadingPhraseElement) {
-        loadingPhraseElement.textContent = loadingPhrases[Math.floor(Math.random() * loadingPhrases.length)];
+function updateLoadingPhrase(phrase) {
+    if (loadingPhraseElement && loadingModalElement && loadingModalElement.classList.contains('visible')) {
+        loadingPhraseElement.textContent = phrase;
     }
 }
 
 function hideLoadingModal() {
+    if (loadingTitleIntervalId) {
+        clearInterval(loadingTitleIntervalId);
+        loadingTitleIntervalId = null;
+    }
     if (loadingModalElement) {
         loadingModalElement.classList.remove('visible');
     }
@@ -1187,366 +906,6 @@ function restartSandboxPuzzle() {
         showNotification('No initial puzzle state to restart to. Reset sandbox or generate a new puzzle.', 'error');
         console.log('[Sandbox] Restart attempted but no sandboxInitialPlayGrid was set.');
     }
-}
-
-function generateRandomSandboxPuzzle(userSeed) {
-    const initialUserSeed = userSeed;
-    let currentAttemptSeed = initialUserSeed;
-
-    const { minSteps: minSolutionSteps, maxSteps: maxSolutionStepsForGeneration } = currentDifficulty;
-
-    showLoadingModal(`Creating a ${currentDifficulty.label.toLowerCase()} puzzle...`);
-
-    const MAX_GENERATION_ATTEMPTS = 100;
-    let attempts = 0;
-
-    setTimeout(async () => {
-        let puzzleGeneratedAndSolvable = false;
-        let finalSolvabilityResult = null;
-        let finalNewGrid = null;
-        let finalNewTargetCorners = null;
-
-        for (attempts = 0; attempts < MAX_GENERATION_ATTEMPTS; attempts++) {
-            if (attempts > 0) {
-                updateLoadingPhrase();
-                currentAttemptSeed = initialUserSeed ? currentAttemptSeed : Date.now() + attempts;
-            } else if (!initialUserSeed) {
-                currentAttemptSeed = Date.now();
-            }
-
-            setSeed(currentAttemptSeed);
-            if (attempts === 0 && initialUserSeed) {
-                console.log("[Sandbox] Attempting puzzle generation with user-provided seed:", currentAttemptSeed);
-            } else if (attempts === 0) {
-                console.log("[Sandbox] First attempt, new puzzle generated with seed:", currentAttemptSeed);
-            }
-
-            const availableColors = Object.keys(colors).filter(color => color !== 'gray');
-            if (availableColors.length === 0) {
-                hideLoadingModal();
-                showNotification('Cannot generate puzzle: No functional colors defined.', 'error');
-                return;
-            }
-            const newTargetCorners = { tl: null, tr: null, bl: null, br: null };
-            const cornerKeys = Object.keys(newTargetCorners);
-            for (const corner of cornerKeys) {
-                const randomIndex = Math.floor(seededRandom() * availableColors.length);
-                newTargetCorners[corner] = availableColors[randomIndex];
-            }
-
-            let newGrid = Array(9).fill(null);
-            let placedColors = new Set();
-            let requiredCornerColors = new Set(Object.values(newTargetCorners));
-            let availableGridSpots = Array.from({ length: 9 }, (_, i) => i);
-            function shuffleArray(array) {
-                for (let i = array.length - 1; i > 0; i--) {
-                    const j = Math.floor(seededRandom() * (i + 1));
-                    [array[i], array[j]] = [array[j], array[i]];
-                }
-            }
-            shuffleArray(availableGridSpots);
-            let colorsToPlace = Array.from(requiredCornerColors);
-            shuffleArray(colorsToPlace);
-            for (const colorToPlace of colorsToPlace) {
-                if (availableGridSpots.length > 0) {
-                    const spot = availableGridSpots.pop();
-                    newGrid[spot] = colorToPlace;
-                    placedColors.add(colorToPlace);
-                }
-            }
-            const minDistinctColors = 3;
-            let distinctAttempts = 0;
-            while (availableGridSpots.length > 0) {
-                const spot = availableGridSpots.pop();
-                let chosenColor = null;
-                if (placedColors.size < minDistinctColors && distinctAttempts < availableColors.length * 2) {
-                    let potentialNewColors = availableColors.filter(c => !placedColors.has(c));
-                    if (potentialNewColors.length > 0) {
-                        shuffleArray(potentialNewColors);
-                        chosenColor = potentialNewColors[0];
-                    }
-                    distinctAttempts++;
-                }
-                if (!chosenColor) {
-                    const randomIndex = Math.floor(seededRandom() * availableColors.length);
-                    chosenColor = availableColors[randomIndex];
-                }
-                newGrid[spot] = chosenColor;
-                placedColors.add(chosenColor);
-            }
-            for (let i = 0; i < newGrid.length; i++) {
-                if (newGrid[i] === null) {
-                    newGrid[i] = availableColors[Math.floor(seededRandom() * availableColors.length)];
-                }
-            }
-
-            const solvabilityResult = isPuzzleSolvable(newGrid, newTargetCorners, maxSolutionStepsForGeneration, currentAttemptSeed);
-
-            if (solvabilityResult.solvable) {
-                if (solvabilityResult.path.length < minSolutionSteps) {
-                    const trivialReason = solvabilityResult.path.length === 0 ? "ALREADY SOLVED" : `solvable in ${solvabilityResult.path.length} STEP(S)`;
-                    console.log(`[Sandbox] Attempt ${attempts + 1} (Seed: ${currentAttemptSeed}): Puzzle TRIVIAL (${trivialReason}). Requires > ${minSolutionSteps - 1} steps for ${currentDifficulty.label}.`);
-                    if (initialUserSeed) {
-                        puzzleGeneratedAndSolvable = true;
-                        finalSolvabilityResult = solvabilityResult;
-                        finalNewGrid = newGrid;
-                        finalNewTargetCorners = newTargetCorners;
-                        break;
-                    }
-                    continue;
-                }
-
-                console.log(`[Sandbox] Attempt ${attempts + 1}: Puzzle IS solvable and NON-TRIVIAL. Seed: ${currentAttemptSeed}, Path: ${solvabilityResult.path.length} steps.`);
-                puzzleGeneratedAndSolvable = true;
-                finalSolvabilityResult = solvabilityResult;
-                finalNewGrid = newGrid;
-                finalNewTargetCorners = newTargetCorners;
-                break;
-            } else {
-                console.log(`[Sandbox] Attempt ${attempts + 1}: Puzzle NOT solvable (Seed: ${currentAttemptSeed}). Reason: ${solvabilityResult.reason}`);
-            }
-
-            if (initialUserSeed) break;
-        }
-
-        hideLoadingModal();
-
-        if (puzzleGeneratedAndSolvable) {
-            sandboxTargetCorners = finalNewTargetCorners;
-            updateSandboxCornerSymbolsDisplay();
-            sandboxGrid = finalNewGrid;
-            renderSandboxGrid();
-            sandboxInPlayMode = false;
-            sandboxPuzzleSolved = false;
-            sandboxInitialPlayGrid = [...finalNewGrid];
-            currentSandboxSolutionPath = finalSolvabilityResult.path;
-
-            if (!initialUserSeed) {
-                const seedInput = document.getElementById('sandbox-seed-input');
-                if (seedInput) {
-                    seedInput.value = currentAttemptSeed;
-                }
-            }
-
-            savePuzzleToHistory({
-                seed: currentAttemptSeed,
-                initialGrid: finalNewGrid,
-                targetCorners: finalNewTargetCorners,
-                solutionPath: finalSolvabilityResult.path,
-                difficultyLabel: currentDifficulty.label,
-                steps: finalSolvabilityResult.path.length
-            });
-
-            let note = "";
-            if (finalSolvabilityResult.path.length === 0) {
-                note = "Puzzle is already solved (0 steps).";
-            } else if (finalSolvabilityResult.path.length === 1) {
-                note = `Puzzle is solvable in 1 step.`;
-            } else {
-                note = `Puzzle solvable in ${finalSolvabilityResult.path.length} steps.`;
-            }
-
-            let mainMessage;
-            if (initialUserSeed) {
-                mainMessage = `Loaded puzzle from seed ${currentAttemptSeed}. ${note}`;
-            } else {
-                mainMessage = `Generated random puzzle (seed: ${currentAttemptSeed}). ${note}`;
-            }
-            showNotification(`${mainMessage} Triviality check performed. Local history next.`, 'success');
-
-            if (sandboxTestSolveBtn) sandboxTestSolveBtn.textContent = 'Show Solution Steps';
-            document.getElementById('sandbox-solution-display').innerHTML = '';
-            document.getElementById('sandbox-solution-display').style.display = 'none';
-
-        } else {
-            let lastAttemptInfo = "No solvable puzzle found.";
-            if (solvabilityResult) {
-                if (!solvabilityResult.solvable) {
-                    lastAttemptInfo = `Last attempt (seed ${currentAttemptSeed}) not solvable: ${solvabilityResult.reason}.`;
-                } else if (solvabilityResult.path.length <= 1) {
-                    lastAttemptInfo = `Last attempt (seed ${currentAttemptSeed}) was trivial (length ${solvabilityResult.path.length}). Generation requires more than 1 step.`;
-                }
-            }
-
-            let finalFailureMessage;
-            if (initialUserSeed) {
-                finalFailureMessage = `Puzzle from seed ${initialUserSeed} is not solvable within ${MAX_GENERATED_PUZZLE_STEPS} steps. ${lastAttemptInfo}`;
-            } else {
-                finalFailureMessage = `Could not generate a suitable (solvable, >1 step) puzzle after ${attempts} attempts. ${lastAttemptInfo}`;
-            }
-            showNotification(finalFailureMessage, 'error');
-            currentSandboxSolutionPath = null;
-            if (sandboxTestSolveBtn) sandboxTestSolveBtn.textContent = 'Test Solve This Puzzle';
-            document.getElementById('sandbox-solution-display').style.display = 'none';
-        }
-    }, 10);
-}
-
-function isPuzzleSolvable(gridToCheck, targetsToCheck, maxSolutionSteps, generationSeed) {
-    console.log(`[Sandbox Solver] Checking solvability for seed: ${generationSeed}`);
-    const initialState = [...gridToCheck];
-    const targetCornerIndices = { tl: 0, tr: 2, bl: 6, br: 8 };
-
-    let visited = new Set();
-    const maxSolverIterations = MAX_ITERATIONS;
-    let iterations = 0;
-
-    function addToVisited(state) {
-        visited.add(JSON.stringify(state));
-    }
-
-    function isVisited(state) {
-        return visited.has(JSON.stringify(state));
-    }
-
-    function checkIsSolved(state) {
-        return state[targetCornerIndices.tl] === targetsToCheck.tl &&
-            state[targetCornerIndices.tr] === targetsToCheck.tr &&
-            state[targetCornerIndices.bl] === targetsToCheck.bl &&
-            state[targetCornerIndices.br] === targetsToCheck.br;
-    }
-
-    function bfsForCheck() {
-        const queue = [{ state: initialState, path: [] }];
-        addToVisited(initialState);
-        iterations = 0;
-
-        while (queue.length > 0) {
-            iterations++;
-            if (iterations > maxSolverIterations) {
-                console.log('[Sandbox Solver] BFS exceeded max iterations');
-                return { solvable: false, path: null, reason: 'BFS: Exceeded maximum iterations' };
-            }
-
-            const { state, path } = queue.shift();
-
-            if (checkIsSolved(state)) {
-                console.log('[Sandbox Solver] BFS found solution.');
-                return { solvable: true, path: path, reason: 'BFS: Solved' };
-            }
-
-            if (path.length >= maxSolutionSteps) {
-                continue;
-            }
-
-            for (let i = 0; i < 9; i++) {
-                const newState = performAction(state, i);
-                if (!isVisited(newState)) {
-                    addToVisited(newState);
-                    queue.push({
-                        state: newState,
-                        path: [...path, { index: i, color: state[i], triggeredBy: state[i] }]
-                    });
-                }
-            }
-        }
-        console.log('[Sandbox Solver] BFS exhausted.');
-        return { solvable: false, path: null, reason: 'BFS: Exhausted, no solution found' };
-    }
-
-    const shallowBfsDepthLimit = Math.min(maxSolutionSteps, 7);
-    console.log(`[Sandbox Solver] Starting shallow BFS check (depth up to ${shallowBfsDepthLimit})`);
-
-    visited = new Set();
-    addToVisited(initialState);
-
-    function bfsLimitedForChecker(limit) {
-        const q = [{ state: initialState, path: [] }];
-        let bfsIterations = 0;
-
-        while (q.length > 0) {
-            bfsIterations++;
-            if (bfsIterations > maxSolverIterations) {
-                return { solvable: false, path: null, reason: `BFS Limited (${limit}): Exceeded local max iterations` };
-            }
-            if (iterations + bfsIterations > maxSolverIterations) {
-                return { solvable: false, path: null, reason: `BFS Limited (${limit}): Exceeded global max iterations` };
-            }
-
-            const { state, path } = q.shift();
-            if (checkIsSolved(state)) {
-                return { solvable: true, path: path, reason: `BFS Limited (${limit}): Solved` };
-            }
-            if (path.length >= limit) {
-                continue;
-            }
-            for (let i = 0; i < 9; i++) {
-                const newState = performAction(state, i);
-                if (!isVisited(newState)) {
-                    addToVisited(newState);
-                    q.push({
-                        state: newState,
-                        path: [...path, { index: i, color: state[i], triggeredBy: state[i] }]
-                    });
-                }
-            }
-        }
-        return { solvable: false, path: null, reason: `BFS Limited (${limit}): Exhausted` };
-    }
-
-    let result = bfsLimitedForChecker(shallowBfsDepthLimit);
-    iterations += result.localIterations || 0;
-
-    if (result.solvable) {
-        console.log('[Sandbox Solver] Solved with shallow BFS.');
-        return result;
-    }
-    if (result.reason && result.reason.includes('Exceeded global max iterations')) {
-        return result;
-    }
-
-    console.log('[Sandbox Solver] Shallow BFS failed or depth too great. Trying IDDFS.');
-
-    function dfsLimitedForChecker(state, path, depth, currentMaxDepth) {
-        iterations++;
-        if (iterations > maxSolverIterations) {
-            return { solvable: false, path: null, reason: 'IDDFS: Exceeded max iterations' };
-        }
-
-        if (checkIsSolved(state)) {
-            return { solvable: true, path: path, reason: 'IDDFS: Solved' };
-        }
-        if (depth >= currentMaxDepth) {
-            return { solvable: false, path: null, reason: 'IDDFS: Depth limit reached for current iteration' };
-        }
-
-        for (let i = 0; i < 9; i++) {
-            const originalTileColor = state[i];
-            const newState = performAction(state, i);
-            if (!isVisited(newState)) {
-                addToVisited(newState);
-                const dfsResult = dfsLimitedForChecker(newState, [...path, { index: i, color: originalTileColor, triggeredBy: originalTileColor }], depth + 1, currentMaxDepth);
-                if (dfsResult.solvable) {
-                    return dfsResult;
-                }
-            }
-        }
-        return { solvable: false, path: null, reason: 'IDDFS: Branch exhausted' };
-    }
-
-    function idDfsForChecker() {
-        let depthLimit = 1;
-        while (depthLimit <= maxSolutionSteps) {
-            console.log(`[Sandbox Solver] IDDFS: Trying depth limit: ${depthLimit} (Global iterations: ${iterations})`);
-            visited = new Set();
-            addToVisited(initialState);
-
-            const iddfsResult = dfsLimitedForChecker(initialState, [], 0, depthLimit);
-            if (iddfsResult.solvable) {
-                console.log('[Sandbox Solver] Solved with IDDFS.');
-                return iddfsResult;
-            }
-            if (iddfsResult.reason && iddfsResult.reason.includes('Exceeded max iterations')) {
-                return iddfsResult;
-            }
-            depthLimit++;
-        }
-        console.log(`[Sandbox Solver] IDDFS: No solution within ${maxSolutionSteps} steps.`);
-        return { solvable: false, path: null, reason: `IDDFS: No solution within ${maxSolutionSteps} steps` };
-    }
-
-    result = idDfsForChecker();
-    return result;
 }
 
 function displaySandboxSolution(path, initialGridState, solutionTargetCorners) {
@@ -1663,6 +1022,7 @@ function checkSandboxWinCondition() {
 function initDifficultySlider() {
     const slider = document.getElementById('sandbox-difficulty-slider');
     const valueDisplay = document.getElementById('sandbox-difficulty-value');
+    const disclaimerDisplay = document.getElementById('sandbox-difficulty-disclaimer');
 
     if (slider && valueDisplay) {
         const initialDifficultyValue = parseInt(slider.value);
@@ -1675,6 +1035,9 @@ function initDifficultySlider() {
             slider.value = "2";
             console.warn('[Sandbox] Difficulty slider had an unexpected initial value. Reset to Medium.');
         }
+        if (disclaimerDisplay) {
+            disclaimerDisplay.style.display = currentDifficulty.label === 'Impossible' ? 'block' : 'none';
+        }
 
         slider.addEventListener('input', function () {
             const selectedValue = parseInt(this.value);
@@ -1682,6 +1045,9 @@ function initDifficultySlider() {
                 currentDifficulty = difficultySettings[selectedValue];
                 valueDisplay.textContent = currentDifficulty.label;
                 console.log(`[Sandbox] Difficulty changed to: ${currentDifficulty.label} (Min steps: ${currentDifficulty.minSteps}, Max steps: ${currentDifficulty.maxSteps})`);
+                if (disclaimerDisplay) {
+                    disclaimerDisplay.style.display = currentDifficulty.label === 'Impossible' ? 'block' : 'none';
+                }
             }
         });
     }
@@ -1739,6 +1105,7 @@ function populateSandboxHistoryUI() {
             <p>Difficulty: <span class="history-difficulty">${item.difficultyLabel || 'N/A'}</span></p>
             <p>Steps: <span class="history-steps">${item.steps !== undefined ? item.steps : 'N/A'}</span></p>
             <p>Date: <span class="history-date">${formatHistoryTimestamp(item.timestamp)}</span></p>
+            ${item.isTrivial ? '<p><span class="history-trivial-note" style="font-size:0.8em; color:var(--accent-color-darker)">Note: Puzzle is trivial for this difficulty.</span></p>' : ''}
         `;
 
         const loadButton = document.createElement('button');
@@ -1813,18 +1180,24 @@ function initClearHistoryButton() {
 }
 
 function switchTab(tabId) {
+    document.querySelectorAll('.tab-content .card.animate-on-load').forEach(card => {
+        card.classList.remove('is-visible');
+    });
+
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-    document.querySelector(`.tab[data-tab='${tabId}']`).classList.add('active');
+    const newActiveTabButton = document.querySelector(`.tab[data-tab='${tabId}']`);
+    if (newActiveTabButton) newActiveTabButton.classList.add('active');
 
     document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
     const activeTabContent = document.getElementById(tabId);
     if (activeTabContent) {
         activeTabContent.classList.add('active');
+        animateCardsInActiveTab();
     }
 
     const historyPanel = document.getElementById('sandbox-history-panel');
     if (historyPanel) {
-        if (tabId === 'sandbox' && activeTabContent) {
+        if (tabId === 'sandbox' && activeTabContent && historyPanel.style.display !== 'flex') {
             historyPanel.style.display = 'flex';
             adjustHistoryPanelHeight();
         } else {
@@ -1921,4 +1294,141 @@ function initSolutionStepSpoilers(containerId) {
             spoiler.click();
         }
     });
+}
+
+function initGeneratorWorker() {
+    if (window.Worker) {
+        currentGeneratorWorker = new Worker('generator_worker.js');
+        currentGeneratorWorker.onmessage = handleGeneratorWorkerMessage;
+        currentGeneratorWorker.onerror = handleGeneratorWorkerError;
+        console.log("[Main] Generator Worker initialized.");
+    } else {
+        console.error("[Main] Web Workers not supported in this browser.");
+        showNotification("Web Workers are not supported. Puzzle generation might be slow or unresponsive.", "error", 5000);
+    }
+}
+
+function requestPuzzleGenerationFromWorker(userSeed = null) {
+    if (!currentGeneratorWorker) {
+        console.log("[Main] Generator worker is not available (null). Attempting to initialize.");
+        initGeneratorWorker();
+        if (!currentGeneratorWorker) {
+            showNotification("Generator worker could not be initialized. Cannot generate puzzle.", "error");
+            hideLoadingModal();
+            return;
+        }
+        console.log("[Main] Generator worker initialized for new request.");
+    }
+
+    showLoadingModal("Warming up the puzzle generator...", "Generating Puzzle");
+
+    const difficultySlider = document.getElementById('sandbox-difficulty-slider');
+    if (difficultySlider) {
+        const selectedValue = parseInt(difficultySlider.value);
+        if (difficultySettings[selectedValue]) {
+            currentDifficulty = difficultySettings[selectedValue];
+        }
+    }
+
+    currentGeneratorWorker.postMessage({
+        type: 'startGeneration',
+        data: {
+            difficulty: currentDifficulty,
+            userSeed: userSeed,
+            colors: colors
+        }
+    });
+}
+
+function handleGeneratorWorkerMessage(e) {
+    const { type, puzzleData, message, error, details } = e.data;
+
+    if (type === 'progress') {
+        updateLoadingPhrase(message + (details && details.seed ? ` (Seed: ${details.seed})` : ''));
+        return;
+    }
+
+    hideLoadingModal();
+
+    if (type === 'generationResult' && puzzleData) {
+        console.log("[Main] Generator Worker Result:", puzzleData);
+
+        sandboxTargetCorners = { ...puzzleData.targetCorners };
+        updateSandboxCornerSymbolsDisplay();
+        sandboxGrid = [...puzzleData.initialGrid];
+        renderSandboxGrid();
+        sandboxInPlayMode = false;
+        sandboxPuzzleSolved = false;
+        sandboxInitialPlayGrid = [...puzzleData.initialGrid];
+        currentSandboxSolutionPath = puzzleData.solutionPath;
+
+        const seedInput = document.getElementById('sandbox-seed-input');
+        if (seedInput) {
+            seedInput.value = puzzleData.seed;
+        }
+
+        savePuzzleToHistory({
+            seed: puzzleData.seed,
+            initialGrid: puzzleData.initialGrid,
+            targetCorners: puzzleData.targetCorners,
+            solutionPath: puzzleData.solutionPath,
+            difficultyLabel: puzzleData.difficultyLabel,
+            steps: puzzleData.steps,
+            isTrivial: puzzleData.isTrivial || false
+        });
+
+        let notificationMessage = message || `Puzzle generated (Seed: ${puzzleData.seed}). Steps: ${puzzleData.steps}.`;
+        if (puzzleData.isTrivial && !puzzleData.userSeed) {
+            notificationMessage += ` Note: This puzzle is simpler than typical for ${puzzleData.difficultyLabel} difficulty.`;
+        }
+        showNotification(notificationMessage, 'success', 5000);
+
+        if (sandboxTestSolveBtn) sandboxTestSolveBtn.textContent = 'Show Solution Steps';
+        document.getElementById('sandbox-solution-display').innerHTML = '';
+        document.getElementById('sandbox-solution-display').style.display = 'none';
+
+    } else if (type === 'generationError' && error) {
+        console.error("[Main] Generator Worker Error:", error);
+        console.error("[Main] Full error object:", JSON.stringify(error, Object.getOwnPropertyNames(error)));
+        showNotification(`Puzzle Generation Failed: ${error}`, 'error', 7000);
+        currentSandboxSolutionPath = null;
+        if (sandboxTestSolveBtn) sandboxTestSolveBtn.textContent = 'Test Solve This Puzzle';
+        document.getElementById('sandbox-solution-display').style.display = 'none';
+
+        if (currentGeneratorWorker) {
+            currentGeneratorWorker.terminate();
+            currentGeneratorWorker = null;
+            console.log("[Main] Generator Worker terminated due to error.");
+        }
+    } else {
+        console.warn("[Main] Unknown message type from Generator Worker or missing data:", e.data);
+    }
+}
+
+function handleGeneratorWorkerError(error) {
+    console.error("[Main] Error in Generator Worker:", error);
+    console.error("[Main] Full error object:", JSON.stringify(error, Object.getOwnPropertyNames(error)));
+    hideLoadingModal();
+    showNotification(`An unexpected error occurred in the puzzle generator: ${error.message || 'Unknown error'}`, 'error', 7000);
+    currentSandboxSolutionPath = null;
+    if (sandboxTestSolveBtn) sandboxTestSolveBtn.textContent = 'Test Solve This Puzzle';
+    document.getElementById('sandbox-solution-display').style.display = 'none';
+
+    if (currentGeneratorWorker) {
+        currentGeneratorWorker.terminate();
+        currentGeneratorWorker = null;
+        console.log("[Main] Generator Worker terminated due to error.");
+    }
+}
+
+function animateCardsInActiveTab() {
+    const activeTabContent = document.querySelector('.tab-content.active');
+    if (activeTabContent) {
+        const cards = activeTabContent.querySelectorAll('.card.animate-on-load');
+        cards.forEach((card, index) => {
+            setTimeout(() => {
+                card.classList.add('is-visible');
+            }, index * 150);
+        });
+    }
 }

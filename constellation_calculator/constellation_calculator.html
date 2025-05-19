@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Constellation Calculator</title>
     <link rel="stylesheet" href="../theme.css">
+    <link rel="icon" type="image/png" href="../favicon.png">
     <link rel="stylesheet" href="constellation_calculator.css">
 </head>
 <body>
@@ -15,7 +16,7 @@
         <h1>Constellation Calculator</h1>
     </header>
     <main class="container">
-        <div class="card">
+        <div class="card animate-on-load">
             <h2 class="card-title">Enter Day Number</h2>
             <div class="input-group">
                 <input type="number" id="dayNumberInput" class="text-input" placeholder="E.g., 25" min="1">
@@ -26,7 +27,7 @@
 
         <div id="constellationResultsContainer" style="display: none; margin-top: 30px;">
             <h2 id="resultsTitle" class="card-title" style="text-align:center; margin-bottom:20px;"></h2>
-            <div id="dailyNoteDisplay" class="daily-note card" style="display: none;">
+            <div id="dailyNoteDisplay" class="daily-note card animate-on-load" style="display: none;">
                 <h3 class="card-title">Special Note for this Day:</h3>
                 <p></p>
             </div>

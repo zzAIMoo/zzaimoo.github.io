@@ -6,6 +6,8 @@
         <title>Mora Jai Solver</title>
         <link rel="stylesheet" href="../theme.css">
         <link rel="stylesheet" href="mora_jai_styles.css">
+        <link rel="icon" type="image/png" href="../favicon.png">
+        <script src="mora_jai_utils.js"></script>
         <script src="mora_jai_scripts.js"></script>
     </head>
     <body>
@@ -35,7 +37,7 @@
             </div>
 
             <div class="tab-content active" id="setup">
-                <div class="card">
+                <div class="card animate-on-load">
                     <h2 class="card-title">Step 1: Set up initial grid</h2>
                     <p>Click on a color, then click on a cell to fill it with that color.</p>
 
@@ -57,7 +59,7 @@
                     </div>
                 </div>
 
-                <div class="card">
+                <div class="card animate-on-load">
                     <h2 class="card-title">Step 2: Set target corner colors</h2>
                     <p>Click on a corner symbol (TL, TR, BL, BR) around the
                         grid, then select its target color from the palette
@@ -66,19 +68,19 @@
                 </div>
 
                 <div class="controls">
-                    <button id="reset-btn" class="button">Reset Grid</button>
+                    <button id="reset-btn" class="button button-secondary">Reset Grid</button>
                     <button id="proceed-btn" class="button">Proceed to Solve</button>
                 </div>
             </div>
 
             <div class="tab-content" id="solve">
-                <div class="card">
+                <div class="card animate-on-load">
                     <h2 class="card-title">Puzzle Solution</h2>
 
                     <div class="controls">
                         <button id="solve-btn" class="button">Find Solution</button>
                         <button id="stop-btn" class="button" disabled>Stop Solving</button>
-                        <button id="toggle-notation-btn" class="button">Toggle Position Notation</button>
+                        <button id="toggle-notation-btn" class="button button-secondary">Toggle Position Notation</button>
                     </div>
 
                     <div class="solution-container" id="solution-output">
@@ -89,7 +91,7 @@
 
             <div class="tab-content" id="sandbox">
                 <div class="sandbox-main-content">
-                    <div class="card">
+                    <div class="card animate-on-load">
                         <h2 class="card-title">Sandbox Mode</h2>
                         <p>Set up a grid and manually trigger tile actions. First, select colors from the palette below to set up the initial grid and (optional) corner reference colors. Then, de-select any color (e.g. by clicking the selected color again or clicking outside the palette) and click on any tile in the grid to activate its function.</p>
 
@@ -106,14 +108,15 @@
                         </div>
                     </div>
                     <div class="controls sandbox-actions">
+                        <button id="restart-sandbox-puzzle-btn" class="button button-secondary">Restart Puzzle</button>
                         <button id="reset-sandbox-btn" class="button">Reset Sandbox</button>
-                        <button id="restart-sandbox-puzzle-btn" class="button">Restart Puzzle</button>
                         <button id="generate-random-sandbox-puzzle-btn" class="button">Generate Random Puzzle</button>
                         <button id="sandbox-test-solve-btn" class="button">Test Solve This Puzzle</button>
                     </div>
                     <div class="sandbox-difficulty-controls">
                         <label for="sandbox-difficulty-slider">Difficulty: <span id="sandbox-difficulty-value">Medium</span></label>
-                        <input type="range" id="sandbox-difficulty-slider" min="1" max="3" value="2" title="Adjust puzzle complexity (solution length)">
+                        <input type="range" id="sandbox-difficulty-slider" min="1" max="4" value="2" title="Adjust puzzle complexity (solution length)">
+                        <span id="sandbox-difficulty-disclaimer" style="display:none; font-size:0.8em; color:var(--accent-color); margin-top:5px;">Generating 'Impossible' puzzles can take a very long time!</span>
                     </div>
                     <div class="sandbox-seed-controls">
                         <input type="text" id="sandbox-seed-input" placeholder="Enter Seed">
@@ -125,7 +128,7 @@
             </div>
 
             <div class="tab-content" id="help">
-                <div class="card">
+                <div class="card animate-on-load">
                     <h2 class="card-title">How to Use This Solver</h2>
                     <ol>
                         <li>Set up the initial 3x3 grid by selecting colors for
@@ -205,6 +208,7 @@
 
         <div id="sandbox-loading-modal" class="modal-overlay">
             <div class="modal-content loading-modal-content">
+                <button id="cancel-generation-btn" class="toast-close-btn" style="position:absolute; top:10px; right:15px; font-size:1.8em; background:transparent; border:none; color:var(--text-secondary); cursor:pointer;">&times;</button>
                 <h2 id="loading-modal-title">Tinkering with colors...</h2>
                 <div class="spinner"></div>
                 <p id="loading-phrase" style="margin-top: 20px;">Mixing mischievous hues...</p>
@@ -215,7 +219,7 @@
             <h3>Puzzle History</h3>
             <ul id="sandbox-history-list">
             </ul>
-            <button id="sandbox-clear-history-btn" class="button button-small" style="display:none; margin-top: 10px;">Clear History</button>
+            <button id="sandbox-clear-history-btn" class="button button-small button-secondary" style="display:none; margin-top: 10px;">Clear History</button>
         </div>
 
         <div class="toast-container"></div>

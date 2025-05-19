@@ -2,7 +2,6 @@
     /* Blue Prince Color */
     --primary-color: #3fbdf8;
     --primary-color-darker: #30a3d9;
-    /* Added for button hover */
     --secondary-color: #122c44;
     /* Using primary as accent for now */
     --accent-color: #3fbdf8;
@@ -71,11 +70,8 @@ h1 {
     transition: background-color 0.2s ease, transform 0.1s ease;
     text-align: center;
     text-decoration: none;
-    /* For <a> tags styled as buttons */
     display: inline-block;
-    /* For <a> tags */
     min-width: 120px;
-    /* Basic min-width */
 }
 
 .button:hover {
@@ -144,8 +140,8 @@ h1 {
 }
 
 .modal-content h2 {
-    color: var(--primary-color);
     margin-top: 0;
+    color: var(--primary-color);
     margin-bottom: 15px;
     font-size: 1.8em;
 }
@@ -158,6 +154,7 @@ h1 {
 }
 
 .loading-modal-content {
+    position: relative;
     padding: 40px;
 }
 
@@ -169,7 +166,7 @@ h1 {
 .spinner {
     width: 50px;
     height: 50px;
-    border: 5px solid var(--border-color-light);
+    border: 6px solid var(--background-card);
     border-top-color: var(--primary-color);
     border-radius: 50%;
     margin: 0 auto 20px auto;
@@ -338,4 +335,15 @@ input[type=number]::-webkit-outer-spin-button {
 input[type=number] {
     -moz-appearance: textfield;
     appearance: textfield;
+}
+
+.card.animate-on-load {
+    opacity: 0;
+    transform: translateY(30px);
+    transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+}
+
+.card.animate-on-load.is-visible {
+    opacity: 1;
+    transform: translateY(0);
 }

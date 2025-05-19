@@ -105,6 +105,9 @@
     left: 50%;
     transform: translate(-50%, -50%);
     pointer-events: none;
+    opacity: 0.8;
+    visibility: visible;
+    transition: opacity 0.3s ease-in-out, visibility 0s linear 0s;
 }
 
 .color-option:hover {
@@ -238,6 +241,7 @@
     height: 25px;
     border: 1px solid var(--text-secondary);
     border-radius: 4px;
+    flex-shrink: 0;
 }
 
 .color-item span {
@@ -738,6 +742,10 @@
     min-height: 1.5em;
 }
 
+#loading-modal-title {
+    transition: opacity 0.25s ease-in-out;
+}
+
 .sandbox-difficulty-controls {
     display: flex;
     flex-direction: column;
@@ -954,7 +962,9 @@
 }
 
 body.spoilers-hidden .color-option svg {
-    display: none !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
+    transition: opacity 0.3s ease-in-out, visibility 0s linear 0.3s;
 }
 
 .settings-section {
@@ -972,7 +982,6 @@ body.spoilers-hidden .color-option svg {
 .settings-section label {
     color: var(--text-secondary);
 }
-
 
 #sandbox-color-palette {
     transition: opacity 0.3s ease-in-out;
