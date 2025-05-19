@@ -54,7 +54,7 @@ let currentGeneratorWorker = null;
 const difficultySettings = {
     1: { label: 'Easy', minSteps: 3, maxSteps: 6 },
     2: { label: 'Medium', minSteps: 7, maxSteps: 10 },
-    3: { label: 'Hard', minSteps: 15, maxSteps: 40 },
+    3: { label: 'Hard', minSteps: 11, maxSteps: 29 },
     4: { label: 'Impossible', minSteps: 30, maxSteps: 60 }
 };
 let currentDifficulty = difficultySettings[2];
