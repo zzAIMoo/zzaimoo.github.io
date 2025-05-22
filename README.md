@@ -8,12 +8,13 @@ Currently, the companion includes:
 
 * **Mora Jai Puzzle Box Solver:** A dedicated tool to help users find solutions for the 3x3 grid-based puzzle boxes.
 * **Constellation Calculator (WIP):** A tool to help with constellations
+* **Another Calculator (WIP):** A tool to help with another thing i won't mention to avoid spoilers
 
 This tool was developed to assist with complex puzzle box scenarios where the tile interactions can be intricate and difficult to solve manually but you can use it for easier ones too :P.
 
 ## Live Version
 
-You can use the Mora Jai Solver directly in your browser by visiting:
+You can use the Blue Prince Companion directly in your browser by visiting:
 [https://zzaimoo.github.io/](https://zzaimoo.github.io/)
 
 ## Features
@@ -109,8 +110,8 @@ The solver understands the following tile behaviors when a tile is activated:
 
 ## Future Enhancements (Potential)
 
-* Optimize search algorithms further for very complex puzzles. (probably not needed)
 * Add cool animation for the step solution :sunglasses:
+* Add another calculator wink wink
 
 ## Contributing
 

@@ -1,8 +1,5 @@
 importScripts('mora_jai_utils.js');
 
-const WORKER_MAX_ITERATIONS = 500000;
-const WORKER_MAX_SHALLOW_BFS_DEPTH = 40;
-const MAX_GENERATION_ATTEMPTS = 100;
 let currentSeed = null;
 let stopGenerationOrder = false;
 
@@ -25,7 +22,7 @@ function postProgress(message, details) {
     self.postMessage({ type: 'progress', message, details });
 }
 
-function checkPuzzleSolvability(gridToCheck, targetsToCheck, maxSolutionSteps, generationSeed) {
+function checkPuzzleSolvability(gridToCheck, targetsToCheck, maxSolutionSteps, generationSeed, workerMaxIterations, workerMaxShallowBfsDepth) {
     console.log(`[Worker/Solvability] Checking puzzle. Seed: ${generationSeed}, Max Steps: ${maxSolutionSteps}`);
     const initialState = [...gridToCheck];
     const targetCornerIndices = { tl: 0, tr: 2, bl: 6, br: 8 };
@@ -48,7 +45,7 @@ function checkPuzzleSolvability(gridToCheck, targetsToCheck, maxSolutionSteps, g
             state[targetCornerIndices.br] === targetsToCheck.br;
     }
 
-    const shallowBfsDepthLimit = Math.min(maxSolutionSteps, WORKER_MAX_SHALLOW_BFS_DEPTH);
+    const shallowBfsDepthLimit = Math.min(maxSolutionSteps, workerMaxShallowBfsDepth);
     console.log(`[Worker/Solvability] Starting shallow BFS check (depth up to ${shallowBfsDepthLimit})`);
 
     visited = new Set();
@@ -61,11 +58,11 @@ function checkPuzzleSolvability(gridToCheck, targetsToCheck, maxSolutionSteps, g
         while (q.length > 0) {
             if (stopGenerationOrder) return { solvable: false, path: null, reason: 'Stopped by user' };
             bfsIterations++;
-            if (bfsIterations > WORKER_MAX_ITERATIONS) {
+            if (bfsIterations > workerMaxIterations) {
                 console.warn('[Worker/Solvability] BFS Exceeded local max iterations');
                 return { solvable: false, path: null, reason: `BFS Limited (${limit}): Exceeded local max iterations`, iterations: bfsIterations };
             }
-            if (iterations + bfsIterations > WORKER_MAX_ITERATIONS) {
+            if (iterations + bfsIterations > workerMaxIterations) {
                 console.warn('[Worker/Solvability] BFS Exceeded global max iterations');
                 return { solvable: false, path: null, reason: `BFS Limited (${limit}): Exceeded global max iterations`, iterations: bfsIterations };
             }
@@ -109,7 +106,7 @@ function checkPuzzleSolvability(gridToCheck, targetsToCheck, maxSolutionSteps, g
     function dfsLimitedForChecker(state, path, depth, currentMaxDepth) {
         iterations++;
         if (stopGenerationOrder) return { solvable: false, path: null, reason: 'Stopped by user' };
-        if (iterations > WORKER_MAX_ITERATIONS) {
+        if (iterations > workerMaxIterations) {
             console.warn('[Worker/Solvability] IDDFS Exceeded max iterations');
             return { solvable: false, path: null, reason: 'IDDFS: Exceeded max iterations' };
         }
@@ -165,7 +162,7 @@ function checkPuzzleSolvability(gridToCheck, targetsToCheck, maxSolutionSteps, g
 }
 
 
-function generatePuzzleInWorker(difficulty, userProvidedSeed, availableColorsObject) {
+function generatePuzzleInWorker(difficulty, userProvidedSeed, availableColorsObject, maxGenerationAttempts, workerMaxIterations, workerMaxShallowBfsDepth) {
     console.log(`[Worker/Generator] Starting puzzle generation. Difficulty: ${difficulty.label}, User Seed: ${userProvidedSeed || 'None'}`);
     stopGenerationOrder = false;
     const initialUserSeed = userProvidedSeed;
@@ -182,7 +179,7 @@ function generatePuzzleInWorker(difficulty, userProvidedSeed, availableColorsObj
     let attempts = 0;
     const useMaxAttempts = difficultyLabel !== 'Impossible';
 
-    for (attempts = 0; useMaxAttempts ? attempts < MAX_GENERATION_ATTEMPTS : true; attempts++) {
+    for (attempts = 0; useMaxAttempts ? attempts < maxGenerationAttempts : true; attempts++) {
         if (stopGenerationOrder) {
             console.log('[Worker/Generator] Stop order received, aborting generation attempts.');
             return { error: 'Puzzle generation cancelled by user.' };
@@ -190,10 +187,10 @@ function generatePuzzleInWorker(difficulty, userProvidedSeed, availableColorsObj
         if (attempts > 0) {
             currentAttemptSeed = initialUserSeed ? currentAttemptSeed : Date.now() + attempts;
             postProgress('Retrying puzzle generation...', { attempt: attempts + 1, seed: currentAttemptSeed });
-            console.log(`[Worker/Generator] Attempt ${attempts + 1}/${MAX_GENERATION_ATTEMPTS}. New Seed: ${currentAttemptSeed}`);
+            console.log(`[Worker/Generator] Attempt ${attempts + 1}/${maxGenerationAttempts}. New Seed: ${currentAttemptSeed}`);
         } else {
             currentAttemptSeed = initialUserSeed || Date.now();
-            console.log(`[Worker/Generator] Attempt ${attempts + 1}/${MAX_GENERATION_ATTEMPTS}. Seed: ${currentAttemptSeed}`);
+            console.log(`[Worker/Generator] Attempt ${attempts + 1}/${maxGenerationAttempts}. Seed: ${currentAttemptSeed}`);
         }
         setSeed(currentAttemptSeed);
 
@@ -255,7 +252,7 @@ function generatePuzzleInWorker(difficulty, userProvidedSeed, availableColorsObj
             }
         }
 
-        const solvabilityResult = checkPuzzleSolvability(newGrid, newTargetCorners, maxSolutionStepsForGeneration, currentAttemptSeed);
+        const solvabilityResult = checkPuzzleSolvability(newGrid, newTargetCorners, maxSolutionStepsForGeneration, currentAttemptSeed, workerMaxIterations, workerMaxShallowBfsDepth);
 
         if (stopGenerationOrder) {
             console.log('[Worker/Generator] Stop order detected after solvability check. Aborting.');
@@ -321,9 +318,9 @@ self.onmessage = function (e) {
 
     if (type === 'startGeneration') {
         stopGenerationOrder = false;
-        const { difficulty, userSeed, colors } = data;
+        const { difficulty, userSeed, colors, MAX_GENERATION_ATTEMPTS, WORKER_MAX_ITERATIONS, WORKER_MAX_SHALLOW_BFS_DEPTH } = data;
         postProgress('Puzzle generation started in worker...', { seed: userSeed || 'New' });
-        const result = generatePuzzleInWorker(difficulty, userSeed, colors);
+        const result = generatePuzzleInWorker(difficulty, userSeed, colors, MAX_GENERATION_ATTEMPTS, WORKER_MAX_ITERATIONS, WORKER_MAX_SHALLOW_BFS_DEPTH);
         console.log('[Worker] Generation finished. Result:', result);
         if (stopGenerationOrder && result.error && result.error.includes('cancelled')) {
         } else if (result.success) {

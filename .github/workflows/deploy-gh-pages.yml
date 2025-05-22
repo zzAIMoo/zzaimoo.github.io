@@ -1,0 +1,42 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main # Or your default branch
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Create config.js from Repository Variables
+        run: |
+          echo "window.APP_CONFIG = {" > mora_jai/config.js
+          echo "  MAX_STEPS: ${{ vars.APP_MAX_STEPS || 70 }}," >> mora_jai/config.js
+          echo "  MAX_DEPTH_LIMIT: ${{ vars.APP_MAX_DEPTH_LIMIT || 70 }}," >> mora_jai/config.js
+          echo "  MAX_ITERATIONS: ${{ vars.APP_MAX_ITERATIONS || 3000000 }}," >> mora_jai/config.js
+          echo "  GENERATOR_WORKER_MAX_ITERATIONS: ${{ vars.APP_GENERATOR_WORKER_MAX_ITERATIONS || 3000000 }}," >> mora_jai/config.js
+          echo "  GENERATOR_WORKER_MAX_SHALLOW_BFS_DEPTH: ${{ vars.APP_GENERATOR_WORKER_MAX_SHALLOW_BFS_DEPTH || 40 }}," >> mora_jai/config.js
+          echo "  GENERATOR_MAX_GENERATION_ATTEMPTS: ${{ vars.APP_GENERATOR_MAX_GENERATION_ATTEMPTS || 100 }}" >> mora_jai/config.js
+          echo "};" >> mora_jai/config.js
+          cat mora_jai/config.js
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: '.'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

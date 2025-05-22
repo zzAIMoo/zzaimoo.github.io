@@ -1,20 +1,14 @@
 importScripts('mora_jai_utils.js');
 
-const MAX_STEPS = 50;
-const MAX_DEPTH_LIMIT = 50;
-const MAX_ITERATIONS = 500000;
-
 let workerStopSolving = false;
 
-function solvePuzzle(initialGrid, targetCornersConfig) {
+function solvePuzzle(initialGrid, targetCornersConfig, maxSteps, maxDepthLimit, maxIterations) {
     const startTime = performance.now();
     const initialState = [...initialGrid];
     const targetCorners = { ...targetCornersConfig };
     const targetCornerIndices = { tl: 0, tr: 2, bl: 6, br: 8 };
 
     let visited = new Set();
-    const maxSteps = MAX_STEPS;
-    const maxIterations = MAX_ITERATIONS;
     let iterations = 0;
     workerStopSolving = false;
 
@@ -75,7 +69,6 @@ function solvePuzzle(initialGrid, targetCornersConfig) {
 
     function idDfs() {
         let depthLimit = 1;
-        const maxDepthLimit = MAX_DEPTH_LIMIT;
 
         while (depthLimit <= maxDepthLimit && !workerStopSolving) {
             updateProgress(`Trying depth limit: ${depthLimit} (IDDFS)`);
@@ -140,9 +133,9 @@ function solvePuzzle(initialGrid, targetCornersConfig) {
 self.onmessage = function (e) {
     const { type, data } = e.data;
     if (type === 'start') {
-        const { initialGrid, targetCorners } = data;
+        const { initialGrid, targetCorners, MAX_STEPS, MAX_DEPTH_LIMIT, MAX_ITERATIONS } = data;
         console.log('[Worker] Received start message', data);
-        const solutionResult = solvePuzzle(initialGrid, targetCorners);
+        const solutionResult = solvePuzzle(initialGrid, targetCorners, MAX_STEPS, MAX_DEPTH_LIMIT, MAX_ITERATIONS);
         self.postMessage({ type: 'result', data: solutionResult });
     } else if (type === 'stop') {
         console.log('[Worker] Received stop message');

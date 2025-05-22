@@ -26,6 +26,14 @@ let sandboxPuzzleSolved = false;
 let sandboxInitialPlayGrid = null;
 let currentSandboxSolutionPath = null;
 
+let SOLVER_MAX_STEPS = 70;
+let SOLVER_MAX_DEPTH_LIMIT = 70;
+let SOLVER_MAX_ITERATIONS = 3000000;
+
+let GENERATOR_WORKER_MAX_ITERATIONS = 3000000;
+let GENERATOR_WORKER_MAX_SHALLOW_BFS_DEPTH = 70;
+let GENERATOR_MAX_GENERATION_ATTEMPTS = 100;
+
 const positionNotations = [
     'TOP LEFT', 'TOP', 'TOP RIGHT',
     'LEFT', 'MID', 'RIGHT',
@@ -300,11 +308,23 @@ function initEventListeners() {
         }
         currentSolverWorker = new Worker('solver_worker.js');
 
+        if (window.APP_CONFIG) {
+            console.log("[Main] APP_CONFIG found. Applying configuration to solver worker.");
+            SOLVER_MAX_STEPS = window.APP_CONFIG.MAX_STEPS !== undefined ? window.APP_CONFIG.MAX_STEPS : SOLVER_MAX_STEPS;
+            SOLVER_MAX_DEPTH_LIMIT = window.APP_CONFIG.MAX_DEPTH_LIMIT !== undefined ? window.APP_CONFIG.MAX_DEPTH_LIMIT : SOLVER_MAX_DEPTH_LIMIT;
+            SOLVER_MAX_ITERATIONS = window.APP_CONFIG.MAX_ITERATIONS !== undefined ? window.APP_CONFIG.MAX_ITERATIONS : SOLVER_MAX_ITERATIONS;
+        } else {
+            console.log("[Main] No APP_CONFIG found. Using default configuration.");
+        }
+
         currentSolverWorker.postMessage({
             type: 'start',
             data: {
                 initialGrid: [...grid],
-                targetCorners: { ...targetCorners }
+                targetCorners: { ...targetCorners },
+                MAX_STEPS: SOLVER_MAX_STEPS,
+                MAX_DEPTH_LIMIT: SOLVER_MAX_DEPTH_LIMIT,
+                MAX_ITERATIONS: SOLVER_MAX_ITERATIONS
             }
         });
 
@@ -489,7 +509,10 @@ function displaySolution(result) {
 
     html += `
             <div class="solution-step">
-                <h4>Press Tiles in This Order (click to reveal):</h4>
+                <div style="display:flex; align-items:center; gap:10px;">
+                    <h4>Press Tiles in This Order (click to reveal):</h4>
+                    <button id="reveal-all-steps-btn" class="button button-small button-secondary">Reveal All</button>
+                </div>
                 ${stepsInteractiveHtml}
             </div>
         `;
@@ -535,6 +558,14 @@ function displaySolution(result) {
     });
 
     solutionOutput.innerHTML = html;
+    document.getElementById('reveal-all-steps-btn').addEventListener('click', function () {
+        const isHidden = document.getElementById('reveal-all-steps-btn').textContent === 'Hide Steps';
+        document.querySelectorAll('.solution-step-spoiler').forEach(el => {
+            el.click();
+        });
+        document.getElementById('reveal-all-steps-btn').textContent = isHidden ? 'Reveal All' : 'Hide Steps';
+    });
+
 }
 
 function getPositionNotation(index) {
@@ -936,7 +967,10 @@ function displaySandboxSolution(path, initialGridState, solutionTargetCorners) {
 
     html += `
         <div class="solution-step">
-            <h4>Press Tiles in This Order (click to reveal):</h4>
+            <div style="display:flex; align-items:center; gap:10px;">
+                <h4>Press Tiles in This Order (click to reveal):</h4>
+                <button id="reveal-all-steps-btn" class="button button-small button-secondary">Reveal All</button>
+            </div>
             ${stepsInteractiveHtml}
         </div>
     `;
@@ -981,6 +1015,14 @@ function displaySandboxSolution(path, initialGridState, solutionTargetCorners) {
     });
     solutionOutput.innerHTML = html;
     solutionOutput.style.display = 'block';
+
+    document.getElementById('reveal-all-steps-btn').addEventListener('click', function () {
+        const isHidden = document.getElementById('reveal-all-steps-btn').textContent === 'Hide Steps';
+        document.querySelectorAll('.solution-step-spoiler').forEach(el => {
+            el.click();
+        });
+        document.getElementById('reveal-all-steps-btn').textContent = isHidden ? 'Reveal All' : 'Hide Steps';
+    });
 }
 
 function checkSandboxWinCondition() {
@@ -1330,12 +1372,21 @@ function requestPuzzleGenerationFromWorker(userSeed = null) {
         }
     }
 
+    if (window.APP_CONFIG) {
+        GENERATOR_WORKER_MAX_ITERATIONS = window.APP_CONFIG.GENERATOR_WORKER_MAX_ITERATIONS !== undefined ? window.APP_CONFIG.GENERATOR_WORKER_MAX_ITERATIONS : GENERATOR_WORKER_MAX_ITERATIONS;
+        GENERATOR_WORKER_MAX_SHALLOW_BFS_DEPTH = window.APP_CONFIG.GENERATOR_WORKER_MAX_SHALLOW_BFS_DEPTH !== undefined ? window.APP_CONFIG.GENERATOR_WORKER_MAX_SHALLOW_BFS_DEPTH : GENERATOR_WORKER_MAX_SHALLOW_BFS_DEPTH;
+        GENERATOR_MAX_GENERATION_ATTEMPTS = window.APP_CONFIG.GENERATOR_MAX_GENERATION_ATTEMPTS !== undefined ? window.APP_CONFIG.GENERATOR_MAX_GENERATION_ATTEMPTS : GENERATOR_MAX_GENERATION_ATTEMPTS;
+    }
+
     currentGeneratorWorker.postMessage({
         type: 'startGeneration',
         data: {
             difficulty: currentDifficulty,
             userSeed: userSeed,
-            colors: colors
+            colors: colors,
+            WORKER_MAX_ITERATIONS: GENERATOR_WORKER_MAX_ITERATIONS,
+            WORKER_MAX_SHALLOW_BFS_DEPTH: GENERATOR_WORKER_MAX_SHALLOW_BFS_DEPTH,
+            MAX_GENERATION_ATTEMPTS: GENERATOR_MAX_GENERATION_ATTEMPTS
         }
     });
 }
