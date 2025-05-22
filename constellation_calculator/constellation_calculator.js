@@ -40,9 +40,9 @@ let starScheduleReady = false;
 
 async function loadStarSchedule() {
     try {
-        const response = await fetch('StarSchedule.txt');
+        const response = await fetch('star_schedule.txt');
         if (!response.ok) {
-            console.error('Failed to load StarSchedule.txt:', response.statusText);
+            console.error('Failed to load star_schedule.txt:', response.statusText);
             alert('Error: Could not load the constellation schedule file. Please try refreshing.');
             return;
         }
@@ -51,9 +51,9 @@ async function loadStarSchedule() {
             return line.trim().split(',').map(s => s.trim()).filter(s => s !== '').map(Number);
         });
         starScheduleReady = true;
-        console.log("StarSchedule.txt loaded and parsed.");
+        console.log("star_schedule.txt loaded and parsed.");
     } catch (error) {
-        console.error('Error fetching or parsing StarSchedule.txt:', error);
+        console.error('Error fetching or parsing star_schedule.txt:', error);
         alert('Error: Could not process the constellation schedule data. Please check the console for details.');
     }
 }
@@ -78,8 +78,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
         const star = parseInt(starNumberInput.value);
-        if (isNaN(star) || star < 1 || star > 200) {
-            alert("Please enter a valid star number (1-200, unfortunately after 200 constellations are random so the calculator will not work)");
+        if (isNaN(star) || star < 1 || star > 1000) {
+            alert("Please enter a valid star number (1-1000). For stars 201-1000, constellations are randomly chosen from a pool derived from stars 197-200.");
             return;
         }
         displayConstellationsForStar(star);
@@ -105,7 +105,7 @@ function animateCardsOnLoad() {
     });
 }
 
-function getConstellationInfoForStar(star) {
+function getActualConstellationsForStar(star) {
     if (!starScheduleReady) {
         return {
             activeConstellations: [],
@@ -113,26 +113,28 @@ function getConstellationInfoForStar(star) {
         };
     }
 
-    if (isNaN(star) || star < 1) {
+    if (isNaN(star) || star < 1 || star > 200) {
+        console.warn(`Invalid star number ${star} passed to getActualConstellationsForStar`);
         return {
             activeConstellations: [],
-            dailyNote: "Please enter a valid star number (1 or greater)."
+            dailyNote: "Internal error: Invalid star number for detailed lookup."
         };
     }
 
-    let effectiveDayForSchedule;
     if (starScheduleData.length === 0) {
-        console.error("Star schedule data is empty. This can happen if StarSchedule.txt is empty or failed to load correctly.");
+        console.error("Star schedule data is empty. This can happen if star_schedule.txt is empty or failed to load correctly.");
         return {
             activeConstellations: [],
             dailyNote: "Error: Constellation schedule data is missing or empty. Please try refreshing."
         };
     }
 
-    effectiveStarForSchedule = (star - 1) % starScheduleData.length + 1;
+    const effectiveStarIndex = (star - 1) % starScheduleData.length;
+    const baseConstellationIds = starScheduleData[effectiveStarIndex] || [];
 
-    const constellationIdsOnStar = starScheduleData[effectiveStarForSchedule - 1] || [];
-    let activeConstellationNames = constellationIdsOnStar
+    let currentConstellationIds = new Set(baseConstellationIds.map(id => Number(id)));
+
+    let activeConstellationNames = Array.from(currentConstellationIds)
         .map(id => CONSTELLATION_ID_MAP[id])
         .filter(name => name !== undefined);
 
@@ -147,12 +149,15 @@ function getConstellationInfoForStar(star) {
             const numSuffixWordsToShow = starsIntoSpiral;
             const numWordsToDisplay = Math.min(prefixLength + numSuffixWordsToShow, SPIRAL_WORDS.length);
             dynamicSpiralEffect = SPIRAL_WORDS.slice(0, numWordsToDisplay).join(' ');
+            if (numWordsToDisplay < SPIRAL_WORDS.length) {
+                dynamicSpiralEffect += "...";
+            }
         } else {
             dynamicSpiralEffect = BASE_CONSTELLATION_EFFECTS["Spiral of Stars"];
         }
     }
 
-    const activeConstellationsDetailed = activeConstellationNames.map(name => {
+    let activeConstellationsDetailed = activeConstellationNames.map(name => {
         let effect = BASE_CONSTELLATION_EFFECTS[name];
         if (name === "Spiral of Stars" && dynamicSpiralEffect !== null) {
             effect = dynamicSpiralEffect;
@@ -163,17 +168,54 @@ function getConstellationInfoForStar(star) {
             effect = `Effect details for "${name}" are not specified`;
         }
 
-        return {
-            name: name,
-            effect: effect
-        };
+        return { name: name, effect: effect };
     }).filter(c => c.name);
+
+    const spiralIndex = activeConstellationsDetailed.findIndex(c => c.name === "Spiral of Stars");
+    if (spiralIndex > 0) {
+        const spiralConstellation = activeConstellationsDetailed.splice(spiralIndex, 1)[0];
+        activeConstellationsDetailed.unshift(spiralConstellation);
+    }
 
     return { activeConstellations: activeConstellationsDetailed, dailyNote: dailyNote };
 }
 
+function getConstellationInfoForStar(star) {
+    if (star >= 1 && star <= 200) {
+        return { isPool: false, ...getActualConstellationsForStar(star) };
+    } else if (star > 200 && star <= 1000) {
+        const sourceStars = [197, 198, 199, 200];
+        const sourceStarConstellations = [];
+
+        for (const sourceStar of sourceStars) {
+            const { activeConstellations: constellationsFromSource } = getActualConstellationsForStar(sourceStar);
+            const filteredConstellations = constellationsFromSource.filter(
+                constellation => constellation.name !== "Spiral of Stars"
+            );
+            sourceStarConstellations.push({
+                starNumber: sourceStar,
+                constellations: filteredConstellations
+            });
+        }
+
+        const dailyNote = "For stars 201-1000, the game randomly applies the full set of active constellations from one of the following base Stars (197, 198, 199, or 200). 'Spiral of Stars' is excluded from the lists below if it would have been active.";
+        return {
+            isPool: true,
+            sourceStarConstellations: sourceStarConstellations,
+            dailyNote: dailyNote
+        };
+    } else {
+        return {
+            isPool: false,
+            activeConstellations: [],
+            dailyNote: "Please enter a valid star number (1-1000)."
+        };
+    }
+}
+
 function displayConstellationsForStar(star) {
-    const { activeConstellations, dailyNote } = getConstellationInfoForStar(star);
+    const resultData = getConstellationInfoForStar(star);
+    const { activeConstellations, dailyNote, isPool, sourceStarConstellations } = resultData;
 
     const resultsContainer = document.getElementById('constellationResultsContainer');
     const resultsTitle = document.getElementById('resultsTitle');
@@ -181,52 +223,98 @@ function displayConstellationsForStar(star) {
     const dailyNoteText = dailyNoteDisplay.querySelector('p');
     const constellationCardsList = document.getElementById('constellationCardsList');
 
-    const existingCards = constellationCardsList.querySelectorAll('.card.animate-on-load');
-    existingCards.forEach(card => card.classList.remove('is-visible'));
+    const existingCardsAndHeadings = constellationCardsList.querySelectorAll('.card.animate-on-load, .pool-source-star-heading');
+    existingCardsAndHeadings.forEach(el => el.classList.remove('is-visible'));
     if (dailyNoteDisplay.classList.contains('animate-on-load')) {
         dailyNoteDisplay.classList.remove('is-visible');
     }
 
-    constellationCardsList.innerHTML = '';
-    dailyNoteDisplay.style.display = 'none';
-    dailyNoteText.textContent = '';
-    resultsContainer.style.display = 'block';
+    setTimeout(() => {
+        constellationCardsList.innerHTML = '';
+        dailyNoteDisplay.style.display = 'none';
+        dailyNoteText.textContent = '';
+        resultsContainer.style.display = 'block';
 
-    if (dailyNote) {
-        dailyNoteText.textContent = dailyNote;
-        dailyNoteDisplay.style.display = 'block';
-    }
-
-    if (activeConstellations.length === 0) {
-        resultsTitle.textContent = `Star ${star}`;
-        const noDataCard = document.createElement('div');
-        noDataCard.className = 'card animate-on-load';
-        if (dailyNote && dailyNoteDisplay.style.display === 'none') {
-            noDataCard.innerHTML = `<p style="text-align:center;">${dailyNote}</p>`;
-        } else if (!dailyNote) {
-            noDataCard.innerHTML = '<p style="text-align:center;">No specific constellations are active for this star.</p>';
+        if (star > 200 && star <= 1000 && isPool) {
+            resultsTitle.textContent = `Possible Constellation Sets for Star ${star}`;
+        } else {
+            resultsTitle.innerHTML = `Constellations for <span class="star-number">Star ${star}</span>`;
         }
-        if (noDataCard.innerHTML.trim() !== '') {
-            constellationCardsList.appendChild(noDataCard);
+
+        if (dailyNote) {
+            dailyNoteText.textContent = dailyNote;
+            dailyNoteDisplay.style.display = 'block';
+            if (!dailyNoteDisplay.classList.contains('animate-on-load')) {
+                dailyNoteDisplay.classList.add('animate-on-load');
+            }
         }
-    } else {
-        resultsTitle.textContent = `Constellations for Star ${star}`;
 
-        activeConstellations.forEach(constellation => {
-            const card = document.createElement('div');
-            card.className = 'card constellation-card animate-on-load';
+        if (isPool && sourceStarConstellations) {
+            sourceStarConstellations.forEach((source, index) => {
+                const heading = document.createElement('h4');
+                heading.className = 'pool-source-star-heading card animate-on-load';
+                heading.textContent = `Option ${index + 1}: Simulating Star ${source.starNumber}`;
+                constellationCardsList.appendChild(heading);
 
-            const title = document.createElement('h3');
-            title.className = 'card-title';
-            title.textContent = constellation.name;
+                if (source.constellations.length === 0) {
+                    const noDataCard = document.createElement('div');
+                    noDataCard.className = 'card animate-on-load';
+                    noDataCard.innerHTML = '<p style="text-align:center;">No other constellations active for this option (excluding Spiral of Stars).</p>';
+                    constellationCardsList.appendChild(noDataCard);
+                } else {
+                    source.constellations.forEach(constellation => {
+                        const card = document.createElement('div');
+                        card.className = 'card constellation-card animate-on-load';
+                        if (constellation.name === "Spiral of Stars") {
+                            card.classList.add("constellation-card-spiral");
+                        }
 
-            const effect = document.createElement('p');
-            effect.textContent = constellation.effect;
+                        const title = document.createElement('h3');
+                        title.className = 'card-title';
+                        title.textContent = constellation.name;
 
-            card.appendChild(title);
-            card.appendChild(effect);
-            constellationCardsList.appendChild(card);
-        });
-    }
-    animateCardsOnLoad();
+                        const effect = document.createElement('p');
+                        effect.textContent = constellation.effect;
+
+                        card.appendChild(title);
+                        card.appendChild(effect);
+                        constellationCardsList.appendChild(card);
+                    });
+                }
+            });
+        } else if (activeConstellations && activeConstellations.length > 0) {
+            activeConstellations.forEach(constellation => {
+                const card = document.createElement('div');
+                card.className = 'card constellation-card animate-on-load';
+                if (constellation.name === "Spiral of Stars") {
+                    card.classList.add("constellation-card-spiral");
+                }
+
+                const title = document.createElement('h3');
+                title.className = 'card-title';
+                title.textContent = constellation.name;
+
+                const effect = document.createElement('p');
+                effect.textContent = constellation.effect;
+
+                card.appendChild(title);
+                card.appendChild(effect);
+                constellationCardsList.appendChild(card);
+            });
+        } else {
+            if (!isPool || !dailyNote) {
+                const noDataCard = document.createElement('div');
+                noDataCard.className = 'card animate-on-load';
+                if (dailyNote && dailyNoteDisplay.style.display === 'none') {
+                    noDataCard.innerHTML = `<p style="text-align:center;">${dailyNote}</p>`;
+                } else if (!dailyNote) {
+                    noDataCard.innerHTML = '<p style="text-align:center;">No specific constellations are active for this star.</p>';
+                }
+                if (noDataCard.innerHTML.trim() !== '') {
+                    constellationCardsList.appendChild(noDataCard);
+                }
+            }
+        }
+        animateCardsOnLoad();
+    }, 50);
 }

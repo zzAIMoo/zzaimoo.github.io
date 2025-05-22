@@ -7,6 +7,7 @@
 
 .input-group .text-input {
     flex-grow: 1;
+    width: 80%;
 }
 
 .input-hint {
@@ -38,12 +39,26 @@
 }
 
 
+
 .constellation-card p {
     white-space: pre-wrap;
     font-size: 0.95em;
     color: var(--text-secondary);
 }
 
+.constellation-card-spiral {
+    grid-column: 1 / -1;
+}
+
+.pool-source-star-heading {
+    grid-column: 1 / -1;
+    text-align: center;
+}
+
 body>.container {
     max-width: 900px;
+}
+
+.star-number {
+    color: #FFD700;
 }
