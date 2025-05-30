@@ -25,6 +25,7 @@ let sandboxInPlayMode = false;
 let sandboxPuzzleSolved = false;
 let sandboxInitialPlayGrid = null;
 let currentSandboxSolutionPath = null;
+let selectedUniformCornerColor = null;
 
 let SOLVER_MAX_STEPS = 70;
 let SOLVER_MAX_DEPTH_LIMIT = 70;
@@ -78,6 +79,7 @@ document.addEventListener('DOMContentLoaded', function () {
     initSandbox();
     initDifficultySlider();
     initGeneratorWorker();
+    initSandboxGenerationOptions();
     const victoryModalResetBtn = document.getElementById('sandbox-victory-reset-btn');
     if (victoryModalResetBtn) {
         victoryModalResetBtn.addEventListener('click', function () {
@@ -792,6 +794,21 @@ function initSandboxEventListeners() {
             document.getElementById('sandbox-color-palette').classList.remove('disabled-palette');
             document.getElementById('sandbox-grid').classList.remove('grid-disabled');
 
+            const uniformCornersCheckbox = document.getElementById('sandbox-uniform-corners-checkbox');
+            if (uniformCornersCheckbox) uniformCornersCheckbox.checked = false;
+            document.querySelectorAll('#sandbox-allowed-colors-container input[type="checkbox"]').forEach(checkbox => {
+                checkbox.checked = true;
+                checkbox.disabled = false;
+                if (checkbox.parentElement) checkbox.parentElement.classList.remove('forced-color-checkbox-label');
+            });
+
+            selectedUniformCornerColor = null;
+            const uniformColorSelectContainer = document.getElementById('sandbox-uniform-corner-color-select-container');
+            if (uniformColorSelectContainer) uniformColorSelectContainer.style.display = 'none';
+            document.querySelectorAll('#uniform-corner-color-options .color-swatch-selectable').forEach(swatch => {
+                swatch.classList.remove('selected');
+            });
+
             const modal = document.getElementById('sandbox-victory-modal');
             if (modal && modal.classList.contains('visible')) {
                 modal.classList.remove('visible');
@@ -1350,6 +1367,99 @@ function initGeneratorWorker() {
     }
 }
 
+function initSandboxGenerationOptions() {
+    const allowedColorsContainer = document.getElementById('sandbox-allowed-colors-container');
+    const uniformCornersCheckbox = document.getElementById('sandbox-uniform-corners-checkbox');
+    const uniformColorSelectContainer = document.getElementById('sandbox-uniform-corner-color-select-container');
+    const uniformColorOptionsDiv = document.getElementById('uniform-corner-color-options');
+
+    if (!allowedColorsContainer || !uniformCornersCheckbox || !uniformColorSelectContainer || !uniformColorOptionsDiv) {
+        console.error("One or more sandbox generation option elements not found.");
+        return;
+    }
+
+    uniformCornersCheckbox.checked = false;
+    uniformColorSelectContainer.style.display = 'none';
+    selectedUniformCornerColor = null;
+
+    allowedColorsContainer.innerHTML = '';
+    const availableColorsForGrid = Object.entries(colors).filter(([key]) => key !== 'gray');
+    availableColorsForGrid.forEach(([key, color]) => {
+        const label = document.createElement('label');
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.value = key;
+        checkbox.id = `sandbox-color-checkbox-${key}`;
+        checkbox.checked = true;
+        checkbox.setAttribute('data-color-name', color.name);
+
+        const swatch = document.createElement('span');
+        swatch.className = 'color-swatch-small';
+        swatch.style.backgroundColor = color.hex;
+
+        const nameSpan = document.createElement('span');
+        nameSpan.textContent = color.name;
+
+        label.appendChild(checkbox);
+        label.appendChild(swatch);
+        label.appendChild(nameSpan);
+        label.title = `Allow ${color.name} in random generation`;
+        allowedColorsContainer.appendChild(label);
+    });
+
+    uniformColorOptionsDiv.innerHTML = '';
+
+    const anyColorSwatch = document.createElement('div');
+    anyColorSwatch.className = 'color-swatch-selectable any-color-swatch';
+    anyColorSwatch.textContent = 'Random Color';
+    anyColorSwatch.title = 'Let generator pick a random uniform corner color';
+    anyColorSwatch.dataset.color = '__RANDOM_UNIFORM__';
+    anyColorSwatch.addEventListener('click', function () {
+        document.querySelectorAll('#uniform-corner-color-options .color-swatch-selectable').forEach(s => s.classList.remove('selected'));
+        this.classList.add('selected');
+        selectedUniformCornerColor = null;
+        clearForcedAllowedColor();
+    });
+    uniformColorOptionsDiv.appendChild(anyColorSwatch);
+
+    const availableColorsForUniformCorner = Object.entries(colors).filter(([key]) => key !== 'gray');
+    availableColorsForUniformCorner.forEach(([key, color]) => {
+        const swatch = document.createElement('div');
+        swatch.className = 'color-swatch-selectable';
+        swatch.style.backgroundColor = color.hex;
+        swatch.dataset.color = key;
+        swatch.title = `Set uniform corners to ${color.name}`;
+        swatch.addEventListener('click', function () {
+            document.querySelectorAll('#uniform-corner-color-options .color-swatch-selectable').forEach(s => s.classList.remove('selected'));
+            this.classList.add('selected');
+            selectedUniformCornerColor = this.dataset.color;
+            setForcedAllowedColor(selectedUniformCornerColor);
+        });
+        uniformColorOptionsDiv.appendChild(swatch);
+    });
+
+    uniformCornersCheckbox.addEventListener('change', function () {
+        if (this.checked) {
+            uniformColorSelectContainer.style.display = 'flex';
+            const randomSwatch = uniformColorOptionsDiv.querySelector('[data-color="__RANDOM_UNIFORM__"');
+            if (randomSwatch) {
+                document.querySelectorAll('#uniform-corner-color-options .color-swatch-selectable.selected').forEach(s => s.classList.remove('selected'));
+                randomSwatch.classList.add('selected');
+                selectedUniformCornerColor = null;
+                clearForcedAllowedColor();
+            } else {
+                selectedUniformCornerColor = null;
+                clearForcedAllowedColor();
+            }
+        } else {
+            uniformColorSelectContainer.style.display = 'none';
+            selectedUniformCornerColor = null;
+            document.querySelectorAll('#uniform-corner-color-options .color-swatch-selectable').forEach(s => s.classList.remove('selected'));
+            clearForcedAllowedColor();
+        }
+    });
+}
+
 function requestPuzzleGenerationFromWorker(userSeed = null) {
     if (!currentGeneratorWorker) {
         console.log("[Main] Generator worker is not available (null). Attempting to initialize.");
@@ -1378,12 +1488,34 @@ function requestPuzzleGenerationFromWorker(userSeed = null) {
         GENERATOR_MAX_GENERATION_ATTEMPTS = window.APP_CONFIG.GENERATOR_MAX_GENERATION_ATTEMPTS !== undefined ? window.APP_CONFIG.GENERATOR_MAX_GENERATION_ATTEMPTS : GENERATOR_MAX_GENERATION_ATTEMPTS;
     }
 
+    const uniformCornersCheckbox = document.getElementById('sandbox-uniform-corners-checkbox');
+    const makeCornersUniform = uniformCornersCheckbox ? uniformCornersCheckbox.checked : false;
+
+    const allowedColorCheckboxes = document.querySelectorAll('#sandbox-allowed-colors-container input[type="checkbox"]:checked');
+    let allowedColorsForGeneration = Array.from(allowedColorCheckboxes).map(cb => cb.value);
+
+    if (allowedColorsForGeneration.length === 0) {
+        allowedColorsForGeneration = Object.keys(colors).filter(key => key !== 'gray');
+        document.querySelectorAll('#sandbox-allowed-colors-container input[type="checkbox"]').forEach(checkbox => checkbox.checked = true);
+        showNotification('No colors selected for generation. Defaulting to all available colors.', 'warning');
+    }
+
+    const genOptions = {
+        allowedColors: allowedColorsForGeneration,
+        makeCornersUniform: makeCornersUniform
+    };
+
+    if (makeCornersUniform && selectedUniformCornerColor) {
+        genOptions.uniformCornerColorTarget = selectedUniformCornerColor;
+    }
+
     currentGeneratorWorker.postMessage({
         type: 'startGeneration',
         data: {
             difficulty: currentDifficulty,
             userSeed: userSeed,
             colors: colors,
+            generationOptions: genOptions,
             WORKER_MAX_ITERATIONS: GENERATOR_WORKER_MAX_ITERATIONS,
             WORKER_MAX_SHALLOW_BFS_DEPTH: GENERATOR_WORKER_MAX_SHALLOW_BFS_DEPTH,
             MAX_GENERATION_ATTEMPTS: GENERATOR_MAX_GENERATION_ATTEMPTS
@@ -1481,5 +1613,26 @@ function animateCardsInActiveTab() {
                 card.classList.add('is-visible');
             }, index * 150);
         });
+    }
+}
+
+function clearForcedAllowedColor() {
+    document.querySelectorAll('#sandbox-allowed-colors-container input[type="checkbox"]').forEach(cb => {
+        if (cb.dataset.forced === 'true') {
+            cb.disabled = false;
+            cb.dataset.forced = 'false';
+            if (cb.parentElement) cb.parentElement.classList.remove('forced-color-checkbox-label');
+        }
+    });
+}
+
+function setForcedAllowedColor(colorKey) {
+    clearForcedAllowedColor(); // Clear previous before setting new
+    const targetCheckbox = document.getElementById(`sandbox-color-checkbox-${colorKey}`);
+    if (targetCheckbox) {
+        targetCheckbox.checked = true;
+        targetCheckbox.disabled = true;
+        targetCheckbox.dataset.forced = 'true';
+        if (targetCheckbox.parentElement) targetCheckbox.parentElement.classList.add('forced-color-checkbox-label');
     }
 }

@@ -1046,3 +1046,237 @@ body.spoilers-hidden .color-option svg {
     margin: 0 3px;
     user-select: none;
 }
+
+.allowed-colors-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 8px;
+    padding: 10px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-medium);
+    background-color: var(--background-color-tertiary);
+}
+
+.allowed-colors-grid label {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.9em;
+    padding: 5px;
+    border-radius: var(--border-radius-small);
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.allowed-colors-grid label:hover {
+    background-color: var(--background-color-hover);
+}
+
+.allowed-colors-grid input[type="checkbox"] {
+    margin-right: 5px;
+    accent-color: var(--primary-color);
+}
+
+.allowed-colors-grid .color-swatch-small {
+    width: 16px;
+    height: 16px;
+    border-radius: 3px;
+    border: 1px solid var(--border-color);
+    display: inline-block;
+}
+
+.sandbox-generation-options fieldset {
+    background-color: var(--background-grid-area);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-large);
+    padding: 20px;
+    margin-top: 10px;
+}
+
+.sandbox-generation-options legend {
+    background-color: var(--background-grid-area);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-large);
+    font-size: 1.2em;
+    font-weight: bold;
+    color: var(--primary-color);
+    padding: 0 10px;
+    margin-left: 10px;
+}
+
+.sandbox-generation-options>fieldset>div {
+    margin-bottom: 15px;
+}
+
+.sandbox-generation-options>fieldset>div:last-child {
+    margin-bottom: 0;
+}
+
+.sandbox-generation-options label {
+    display: flex;
+    align-items: center;
+    color: var(--text-secondary);
+    font-size: 0.95em;
+    cursor: pointer;
+}
+
+.sandbox-generation-options input[type="checkbox"] {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    width: 18px;
+    height: 18px;
+    border: 2px solid var(--border-color-light);
+    border-radius: 4px;
+    margin-right: 10px;
+    cursor: pointer;
+    position: relative;
+    outline: none;
+    transition: background-color 0.2s ease, border-color 0.2s ease;
+    flex-shrink: 0;
+}
+
+.sandbox-generation-options input[type="checkbox"]:hover {
+    border-color: var(--primary-color);
+}
+
+.sandbox-generation-options input[type="checkbox"]:checked {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.sandbox-generation-options input[type="checkbox"]::before {
+    content: '🗸';
+    font-size: 14px;
+    color: var(--button-text-color);
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0);
+    transition: transform 0.2s ease;
+}
+
+.sandbox-generation-options input[type="checkbox"]:checked::before {
+    transform: translate(-50%, -50%) scale(1);
+}
+
+.allowed-colors-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: 10px;
+    padding: 15px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-medium);
+    background-color: var(--secondary-color);
+}
+
+.allowed-colors-grid label {
+    padding: 8px 10px;
+    border-radius: var(--border-radius-small);
+    transition: background-color 0.2s ease;
+    background-color: var(--background-card);
+    border: 1px solid transparent;
+}
+
+.allowed-colors-grid label:hover {
+    background-color: var(--background-grid-area);
+    border-color: var(--border-color-light);
+}
+
+.allowed-colors-grid .color-swatch-small {
+    width: 18px;
+    height: 18px;
+    border-radius: 3px;
+    border: 1px solid var(--text-secondary);
+    display: inline-block;
+    margin-left: 5px;
+}
+
+.allowed-colors-grid label span:not(.color-swatch-small) {
+    margin-left: 8px;
+    color: var(--text-primary);
+}
+
+.allowed-colors-grid label.forced-color-checkbox-label {
+    background-color: var(--primary-color-darker);
+    color: var(--button-text-color);
+    cursor: not-allowed;
+    opacity: 0.8;
+    border: 1px solid var(--primary-color);
+    border-radius: 4px;
+}
+
+.allowed-colors-grid label.forced-color-checkbox-label input[type="checkbox"] {
+    cursor: not-allowed;
+}
+
+.allowed-colors-grid label.forced-color-checkbox-label .color-swatch-small {
+    opacity: 0.7;
+}
+
+.allowed-colors-grid label.forced-color-checkbox-label span:not(.color-swatch-small) {
+    color: var(--button-text-color);
+}
+
+.inline-color-picker {
+    display: inline-flex;
+    gap: 5px;
+    align-items: center;
+    vertical-align: middle;
+}
+
+.inline-color-picker .color-swatch-selectable {
+    width: 22px;
+    height: 22px;
+    border-radius: 4px;
+    cursor: pointer;
+    border: 2px solid var(--border-color-light);
+    transition: border-color 0.2s ease, transform 0.2s ease;
+    box-sizing: border-box;
+}
+
+.inline-color-picker .color-swatch-selectable:hover {
+    border-color: var(--primary-color);
+    transform: scale(1.1);
+}
+
+.inline-color-picker .color-swatch-selectable.selected {
+    border-color: var(--primary-color-darker);
+    box-shadow: 0 0 8px var(--primary-color);
+    transform: scale(1.1);
+}
+
+.inline-color-picker .color-swatch-selectable.any-color-swatch {
+    background-image: linear-gradient(to right,
+            rgba(0, 0, 0, 1),
+            rgba(255, 0, 0, 1),
+            rgba(0, 255, 0, 1),
+            rgba(255, 255, 0, 1),
+            rgba(255, 105, 180, 1),
+            rgba(128, 0, 128, 1),
+            rgba(255, 165, 0, 1),
+            rgba(255, 255, 255, 1),
+            rgba(67, 135, 217, 1));
+    border: 2px solid var(--border-color);
+    color: var(--text-primary);
+    text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 0.8em;
+    padding: 0 5px;
+    width: auto;
+    min-width: 180px;
+}
+
+.inline-color-picker .color-swatch-selectable.any-color-swatch:hover {
+    transform: scale(1.03);
+}
+
+.inline-color-picker .color-swatch-selectable.any-color-swatch.selected {
+    border-style: solid;
+    border-color: var(--primary-color);
+    color: var(--text-primary);
+    box-shadow: 0 0 8px var(--primary-color);
+    transform: scale(1.03);
+}

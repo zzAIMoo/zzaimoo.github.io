@@ -162,19 +162,28 @@ function checkPuzzleSolvability(gridToCheck, targetsToCheck, maxSolutionSteps, g
 }
 
 
-function generatePuzzleInWorker(difficulty, userProvidedSeed, availableColorsObject, maxGenerationAttempts, workerMaxIterations, workerMaxShallowBfsDepth) {
+function generatePuzzleInWorker(difficulty, userProvidedSeed, availableColorsObject, generationOptions, maxGenerationAttempts, workerMaxIterations, workerMaxShallowBfsDepth) {
     console.log(`[Worker/Generator] Starting puzzle generation. Difficulty: ${difficulty.label}, User Seed: ${userProvidedSeed || 'None'}`);
+    console.log("[Worker/Generator] Generation Options Received:", generationOptions);
     stopGenerationOrder = false;
     const initialUserSeed = userProvidedSeed;
     let currentAttemptSeed = initialUserSeed;
 
     const { minSteps: minSolutionSteps, maxSteps: maxSolutionStepsForGeneration, label: difficultyLabel } = difficulty;
-    const availableColors = Object.keys(availableColorsObject).filter(color => color !== 'gray');
 
-    if (availableColors.length === 0) {
-        console.error('[Worker/Generator] Cannot generate puzzle: No functional colors defined.');
-        return { error: 'Cannot generate puzzle: No functional colors defined.' };
+    let currentAllowedColors = generationOptions && generationOptions.allowedColors && generationOptions.allowedColors.length > 0
+        ? generationOptions.allowedColors
+        : Object.keys(availableColorsObject).filter(color => color !== 'gray');
+
+    if (currentAllowedColors.length === 0) {
+        console.warn('[Worker/Generator] No allowed colors specified or available after filtering gray. Defaulting to all functional colors from availableColorsObject.');
+        currentAllowedColors = Object.keys(availableColorsObject).filter(color => color !== 'gray');
+        if (currentAllowedColors.length === 0) {
+            console.error('[Worker/Generator] CRITICAL: No functional colors available even from availableColorsObject.');
+            return { error: 'Cannot generate puzzle: No functional colors defined in the system.' };
+        }
     }
+    console.log("[Worker/Generator] Effective allowed colors for generation:", currentAllowedColors);
 
     let attempts = 0;
     const useMaxAttempts = difficultyLabel !== 'Impossible';
@@ -196,9 +205,28 @@ function generatePuzzleInWorker(difficulty, userProvidedSeed, availableColorsObj
 
         const newTargetCorners = { tl: null, tr: null, bl: null, br: null };
         const cornerKeys = Object.keys(newTargetCorners);
-        for (const corner of cornerKeys) {
-            const randomIndex = Math.floor(seededRandom() * availableColors.length);
-            newTargetCorners[corner] = availableColors[randomIndex];
+
+        if (generationOptions && generationOptions.makeCornersUniform) {
+            let uniformColor = null;
+            if (generationOptions.uniformCornerColorTarget && currentAllowedColors.includes(generationOptions.uniformCornerColorTarget)) {
+                uniformColor = generationOptions.uniformCornerColorTarget;
+                console.log("[Worker/Generator] Using specified uniform corner color:", uniformColor);
+            } else {
+                if (generationOptions.uniformCornerColorTarget && !currentAllowedColors.includes(generationOptions.uniformCornerColorTarget)) {
+                    console.warn(`[Worker/Generator] Specified uniform corner color '${generationOptions.uniformCornerColorTarget}' is not in the allowed list. Picking random allowed color instead.`);
+                }
+                const uniformColorIndex = Math.floor(seededRandom() * currentAllowedColors.length);
+                uniformColor = currentAllowedColors[uniformColorIndex];
+                console.log("[Worker/Generator] Making corners uniform with randomly selected allowed color:", uniformColor);
+            }
+            for (const corner of cornerKeys) {
+                newTargetCorners[corner] = uniformColor;
+            }
+        } else {
+            for (const corner of cornerKeys) {
+                const randomIndex = Math.floor(seededRandom() * currentAllowedColors.length);
+                newTargetCorners[corner] = currentAllowedColors[randomIndex];
+            }
         }
 
         let newGrid = Array(9).fill(null);
@@ -230,8 +258,8 @@ function generatePuzzleInWorker(difficulty, userProvidedSeed, availableColorsObj
         while (availableGridSpots.length > 0) {
             const spot = availableGridSpots.pop();
             let chosenColor = null;
-            if (placedColors.size < minDistinctColors && distinctAttempts < availableColors.length * 2) {
-                let potentialNewColors = availableColors.filter(c => !placedColors.has(c));
+            if (placedColors.size < minDistinctColors && distinctAttempts < currentAllowedColors.length * 2) {
+                let potentialNewColors = currentAllowedColors.filter(c => !placedColors.has(c));
                 if (potentialNewColors.length > 0) {
                     shuffleArray(potentialNewColors);
                     chosenColor = potentialNewColors[0];
@@ -239,8 +267,8 @@ function generatePuzzleInWorker(difficulty, userProvidedSeed, availableColorsObj
                 distinctAttempts++;
             }
             if (!chosenColor) {
-                const randomIndex = Math.floor(seededRandom() * availableColors.length);
-                chosenColor = availableColors[randomIndex];
+                const randomIndex = Math.floor(seededRandom() * currentAllowedColors.length);
+                chosenColor = currentAllowedColors[randomIndex];
             }
             newGrid[spot] = chosenColor;
             placedColors.add(chosenColor);
@@ -248,7 +276,7 @@ function generatePuzzleInWorker(difficulty, userProvidedSeed, availableColorsObj
 
         for (let i = 0; i < newGrid.length; i++) {
             if (newGrid[i] === null) {
-                newGrid[i] = availableColors[Math.floor(seededRandom() * availableColors.length)];
+                newGrid[i] = currentAllowedColors[Math.floor(seededRandom() * currentAllowedColors.length)];
             }
         }
 
@@ -318,9 +346,9 @@ self.onmessage = function (e) {
 
     if (type === 'startGeneration') {
         stopGenerationOrder = false;
-        const { difficulty, userSeed, colors, MAX_GENERATION_ATTEMPTS, WORKER_MAX_ITERATIONS, WORKER_MAX_SHALLOW_BFS_DEPTH } = data;
+        const { difficulty, userSeed, colors, generationOptions, MAX_GENERATION_ATTEMPTS, WORKER_MAX_ITERATIONS, WORKER_MAX_SHALLOW_BFS_DEPTH } = data;
         postProgress('Puzzle generation started in worker...', { seed: userSeed || 'New' });
-        const result = generatePuzzleInWorker(difficulty, userSeed, colors, MAX_GENERATION_ATTEMPTS, WORKER_MAX_ITERATIONS, WORKER_MAX_SHALLOW_BFS_DEPTH);
+        const result = generatePuzzleInWorker(difficulty, userSeed, colors, generationOptions, MAX_GENERATION_ATTEMPTS, WORKER_MAX_ITERATIONS, WORKER_MAX_SHALLOW_BFS_DEPTH);
         console.log('[Worker] Generation finished. Result:', result);
         if (stopGenerationOrder && result.error && result.error.includes('cancelled')) {
         } else if (result.success) {
