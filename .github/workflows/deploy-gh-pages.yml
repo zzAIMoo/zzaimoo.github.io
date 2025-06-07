@@ -25,7 +25,8 @@ jobs:
           echo "  MAX_ITERATIONS: ${{ vars.APP_MAX_ITERATIONS || 3000000 }}," >> mora_jai/config.js
           echo "  GENERATOR_WORKER_MAX_ITERATIONS: ${{ vars.APP_GENERATOR_WORKER_MAX_ITERATIONS || 3000000 }}," >> mora_jai/config.js
           echo "  GENERATOR_WORKER_MAX_SHALLOW_BFS_DEPTH: ${{ vars.APP_GENERATOR_WORKER_MAX_SHALLOW_BFS_DEPTH || 40 }}," >> mora_jai/config.js
-          echo "  GENERATOR_MAX_GENERATION_ATTEMPTS: ${{ vars.APP_GENERATOR_MAX_GENERATION_ATTEMPTS || 100 }}" >> mora_jai/config.js
+          echo "  GENERATOR_MAX_GENERATION_ATTEMPTS: ${{ vars.APP_GENERATOR_MAX_GENERATION_ATTEMPTS || 100 }}," >> mora_jai/config.js
+          echo "  IS_LOCAL_DEV: false" >> mora_jai/config.js
           echo "};" >> mora_jai/config.js
           cat mora_jai/config.js
 
