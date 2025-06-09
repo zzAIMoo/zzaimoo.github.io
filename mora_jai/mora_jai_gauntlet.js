@@ -1,9 +1,3 @@
-if (!window.APP_CONFIG.IS_LOCAL_DEV) {
-    console.log = () => { };
-    console.warn = () => { };
-    console.error = console.error;
-}
-
 const GAUNTLET_STATE_KEY = 'moraJaiGauntletState';
 const TARGET_CORNER_INDICES = { tl: 0, tr: 2, bl: 6, br: 8 };
 
@@ -299,10 +293,10 @@ function getRandomShopItems(availableItems, count = 3) {
 }
 
 function initializeGauntlet() {
-    console.log("window.APP_CONFIG", window.APP_CONFIG);
-    if (typeof window.APP_CONFIG === 'undefined') {
-        console.warn('APP_CONFIG not loaded, falling back to defaults');
-        window.APP_CONFIG = { IS_LOCAL_DEV: true };
+    if (!window.APP_CONFIG.IS_LOCAL_DEV) {
+        console.log = () => { };
+        console.warn = () => { };
+        console.error = console.error;
     }
 
     initializeDOMElements();
