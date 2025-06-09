@@ -293,7 +293,7 @@ function getRandomShopItems(availableItems, count = 3) {
 }
 
 function initializeGauntlet() {
-    if (!window.APP_CONFIG.IS_LOCAL_DEV) {
+    if (window.APP_CONFIG && !window.APP_CONFIG.IS_LOCAL_DEV) {
         console.log = () => { };
         console.warn = () => { };
         console.error = console.error;
