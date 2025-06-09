@@ -1,10 +1,194 @@
+/* ==========================================================================
+   TOOLS SECTION
+   ========================================================================== */
+
+.tools-header {
+    text-align: center;
+    margin: 40px 0 50px 0;
+}
+
+.tools-header h1 {
+    font-size: 2.8em;
+    margin: 0 0 15px 0;
+    background: linear-gradient(45deg, #3b82f6, #ef4444);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.tools-header p {
+    font-size: 1.1em;
+    color: var(--text-secondary);
+}
+
 .tool-navigation {
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
-    gap: 20px;
+    gap: 30px;
     padding: 20px 0;
 }
+
+.enhanced-tool-card {
+    flex: 1 1 320px;
+    max-width: 380px;
+    text-decoration: none;
+    color: inherit;
+    transition: all 0.3s ease;
+    position: relative;
+    padding: 30px 25px;
+    background: linear-gradient(145deg,
+            var(--card-background) 0%,
+            rgba(59, 130, 246, 0.05) 50%,
+            var(--card-background) 100%);
+    border: 2px solid var(--border-color);
+    border-radius: var(--border-radius-large);
+    overflow: hidden;
+}
+
+.enhanced-tool-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg,
+            transparent,
+            rgba(168, 85, 247, 0.1),
+            transparent);
+    transition: left 0.5s ease;
+}
+
+.enhanced-tool-card:hover::before {
+    left: 100%;
+}
+
+.enhanced-tool-card:hover {
+    transform: translateY(-8px) scale(1.03);
+    border-color: var(--accent-color);
+    box-shadow:
+        0 20px 40px rgba(0, 0, 0, 0.2),
+        0 0 20px rgba(168, 85, 247, 0.3);
+}
+
+.tool-icon {
+    font-size: 48px;
+    text-align: center;
+    margin-bottom: 20px;
+    filter: drop-shadow(0 0 8px rgba(168, 85, 247, 0.4));
+}
+
+.enhanced-tool-card .card-title {
+    font-size: 1.4em;
+    margin: 0 0 15px 0;
+    text-align: center;
+    background: linear-gradient(45deg, #3b82f6, #ef4444);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.enhanced-tool-card p {
+    color: var(--text-secondary);
+    font-size: 0.95em;
+    line-height: 1.5;
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.tool-badge {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 0.8em;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    background: linear-gradient(45deg, #3b82f6, #a855f7);
+    color: white;
+    box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+}
+
+.wip-badge {
+    background: linear-gradient(45deg, #f59e0b, #ef4444);
+    box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
+}
+
+.challenge-badge {
+    background: linear-gradient(45deg, #ef4444, #dc2626);
+    box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+}
+
+/* ==========================================================================
+   FOOTER
+   ========================================================================== */
+
+footer {
+    background: linear-gradient(135deg,
+            rgba(0, 0, 0, 0.1) 0%,
+            rgba(59, 130, 246, 0.05) 50%,
+            rgba(0, 0, 0, 0.1) 100%);
+    text-align: center;
+    margin-top: 80px;
+    padding: 40px 20px;
+    border-top: 2px solid var(--border-color);
+    position: relative;
+}
+
+.footer-content p {
+    margin: 0 0 15px 0;
+    color: var(--text-primary);
+    font-size: 1em;
+}
+
+.footer-links {
+    color: var(--text-secondary);
+    font-size: 0.9em;
+}
+
+.footer-links span {
+    background: linear-gradient(45deg, #3b82f6, #ef4444);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-weight: 500;
+}
+
+/* ==========================================================================
+   RESPONSIVE DESIGN
+   ========================================================================== */
+
+@media (max-width: 768px) {
+    .tools-header h1 {
+        font-size: 2.2em;
+    }
+
+    .tool-navigation {
+        gap: 20px;
+    }
+
+    .enhanced-tool-card {
+        flex: 1 1 280px;
+        max-width: none;
+    }
+}
+
+@media (max-width: 480px) {
+    .tools-header h1 {
+        font-size: 1.8em;
+    }
+
+    .tools-header {
+        margin: 20px 0 40px 0;
+    }
+}
+
+/* ==========================================================================
+   LEGACY STYLES
+   ========================================================================== */
 
 .tool-card {
     flex: 1 1 300px;
@@ -27,13 +211,4 @@
 body>main.container {
     max-width: 1000px;
     padding: 20px;
-}
-
-footer {
-    text-align: center;
-    margin-top: 40px;
-    padding: 20px;
-    color: var(--text-secondary);
-    font-size: 0.9em;
-    border-top: 1px solid var(--border-color);
 }

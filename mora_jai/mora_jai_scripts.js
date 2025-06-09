@@ -56,6 +56,8 @@ let loadingModalTitleElement = null;
 let sandboxTestSolveBtn = null;
 let spoilerFreeToggle = null;
 let loadingTitleIntervalId = null;
+let loadingModalTimeoutId = null;
+let loadingModalStartTime = null;
 
 let currentSolverWorker = null;
 let currentGeneratorWorker = null;
@@ -127,6 +129,21 @@ document.addEventListener('DOMContentLoaded', function () {
     initSolutionStepSpoilers('solution-output');
     initSolutionStepSpoilers('sandbox-solution-display');
     animateCardsInActiveTab();
+
+    window.addEventListener('beforeunload', function () {
+        console.log("[Main] Page unloading - cleaning up workers and timeouts");
+        clearLoadingModalTimeouts();
+
+        if (currentGeneratorWorker) {
+            currentGeneratorWorker.terminate();
+            currentGeneratorWorker = null;
+        }
+
+        if (currentSolverWorker) {
+            currentSolverWorker.terminate();
+            currentSolverWorker = null;
+        }
+    });
 });
 
 function initGrid() {
@@ -514,7 +531,7 @@ function displaySolution(result) {
     html += `
             <div class="solution-step">
                 <div style="display:flex; align-items:center; gap:10px;">
-                    <h4>Press Tiles in This Order (click to reveal):</h4>
+                <h4>Press Tiles in This Order (click to reveal):</h4>
                     <button id="reveal-all-steps-btn" class="button button-small button-secondary">Reveal All</button>
                 </div>
                 ${stepsInteractiveHtml}
@@ -888,6 +905,22 @@ function showLoadingModal(initialPhrase, title) {
     if (!loadingModalTitleElement) loadingModalTitleElement = document.getElementById('loading-modal-title');
 
     if (loadingModalElement && loadingPhraseElement && loadingModalTitleElement) {
+        clearLoadingModalTimeouts();
+
+        loadingModalStartTime = Date.now();
+
+        loadingModalTimeoutId = setTimeout(() => {
+            console.warn("[Loading Modal] Timeout reached - auto-hiding modal after 30 seconds");
+            hideLoadingModal();
+            showNotification('Operation timed out. Please try again.', 'warning', 5000);
+
+            if (currentGeneratorWorker) {
+                console.log("[Loading Modal] Terminating generator worker due to timeout");
+                currentGeneratorWorker.terminate();
+                currentGeneratorWorker = null;
+            }
+        }, 30000);
+
         if (loadingTitleIntervalId) {
             clearInterval(loadingTitleIntervalId);
             loadingTitleIntervalId = null;
@@ -895,16 +928,20 @@ function showLoadingModal(initialPhrase, title) {
 
         loadingModalTitleElement.style.opacity = '0';
         setTimeout(() => {
-            loadingModalTitleElement.textContent = loadingPhrases[Math.floor(Math.random() * loadingPhrases.length)];
-            loadingModalTitleElement.style.opacity = '1';
+            if (loadingModalTitleElement) {
+                loadingModalTitleElement.textContent = loadingPhrases[Math.floor(Math.random() * loadingPhrases.length)];
+                loadingModalTitleElement.style.opacity = '1';
+            }
         }, 50);
 
         loadingTitleIntervalId = setInterval(() => {
             if (loadingModalTitleElement && loadingModalElement.classList.contains('visible')) {
                 loadingModalTitleElement.style.opacity = '0';
                 setTimeout(() => {
-                    loadingModalTitleElement.textContent = loadingPhrases[Math.floor(Math.random() * loadingPhrases.length)];
-                    loadingModalTitleElement.style.opacity = '1';
+                    if (loadingModalTitleElement) {
+                        loadingModalTitleElement.textContent = loadingPhrases[Math.floor(Math.random() * loadingPhrases.length)];
+                        loadingModalTitleElement.style.opacity = '1';
+                    }
                 }, 250);
             }
         }, 2800);
@@ -912,22 +949,41 @@ function showLoadingModal(initialPhrase, title) {
         loadingPhraseElement.textContent = initialPhrase || loadingPhrases[Math.floor(Math.random() * loadingPhrases.length)];
 
         loadingModalElement.classList.add('visible');
+        console.log("[Loading Modal] Modal shown with timeout set");
+    } else {
+        console.error("[Loading Modal] Required modal elements not found in DOM");
     }
 }
 
 function updateLoadingPhrase(phrase) {
     if (loadingPhraseElement && loadingModalElement && loadingModalElement.classList.contains('visible')) {
         loadingPhraseElement.textContent = phrase;
+        console.log("[Loading Modal] Updated phrase:", phrase);
     }
 }
 
 function hideLoadingModal() {
+    clearLoadingModalTimeouts();
+
+    if (loadingModalElement && loadingModalElement.classList.contains('visible')) {
+        const timeElapsed = loadingModalStartTime ? Date.now() - loadingModalStartTime : 0;
+        console.log(`[Loading Modal] Hiding modal after ${timeElapsed}ms`);
+
+        loadingModalElement.classList.remove('visible');
+    }
+
+    loadingModalStartTime = null;
+}
+
+function clearLoadingModalTimeouts() {
+    if (loadingModalTimeoutId) {
+        clearTimeout(loadingModalTimeoutId);
+        loadingModalTimeoutId = null;
+    }
+
     if (loadingTitleIntervalId) {
         clearInterval(loadingTitleIntervalId);
         loadingTitleIntervalId = null;
-    }
-    if (loadingModalElement) {
-        loadingModalElement.classList.remove('visible');
     }
 }
 
@@ -1000,7 +1056,7 @@ function displaySandboxSolution(path, initialGridState, solutionTargetCorners) {
     html += `
         <div class="solution-step">
             <div style="display:flex; align-items:center; gap:10px;">
-                <h4>Press Tiles in This Order (click to reveal):</h4>
+            <h4>Press Tiles in This Order (click to reveal):</h4>
                 <button id="reveal-all-steps-btn" class="button button-small button-secondary">Reveal All</button>
             </div>
             ${stepsInteractiveHtml}
@@ -1372,14 +1428,35 @@ function initSolutionStepSpoilers(containerId) {
 }
 
 function initGeneratorWorker() {
-    if (window.Worker) {
-        currentGeneratorWorker = new Worker('generator_worker.js');
-        currentGeneratorWorker.onmessage = handleGeneratorWorkerMessage;
-        currentGeneratorWorker.onerror = handleGeneratorWorkerError;
-        console.log("[Main] Generator Worker initialized.");
-    } else {
-        console.error("[Main] Web Workers not supported in this browser.");
-        showNotification("Web Workers are not supported. Puzzle generation might be slow or unresponsive.", "error", 5000);
+    try {
+        if (currentGeneratorWorker) {
+            console.log("[Main] Terminating existing generator worker before initializing new one");
+            currentGeneratorWorker.terminate();
+            currentGeneratorWorker = null;
+        }
+
+        if (window.Worker) {
+            currentGeneratorWorker = new Worker('generator_worker.js');
+            currentGeneratorWorker.onmessage = handleGeneratorWorkerMessage;
+            currentGeneratorWorker.onerror = handleGeneratorWorkerError;
+
+            currentGeneratorWorker.onopen = function () {
+                console.log("[Main] Generator Worker connection opened");
+            };
+
+            currentGeneratorWorker.onclose = function () {
+                console.log("[Main] Generator Worker connection closed");
+            };
+
+            console.log("[Main] Generator Worker initialized successfully.");
+        } else {
+            console.error("[Main] Web Workers not supported in this browser.");
+            showNotification("Web Workers are not supported. Puzzle generation might be slow or unresponsive.", "error", 5000);
+        }
+    } catch (error) {
+        console.error("[Main] Error initializing generator worker:", error);
+        currentGeneratorWorker = null;
+        showNotification("Failed to initialize puzzle generator. Please refresh the page and try again.", "error", 7000);
     }
 }
 
@@ -1508,147 +1585,211 @@ function initSandboxGenerationOptions() {
 }
 
 function requestPuzzleGenerationFromWorker(userSeed = null) {
-    if (!currentGeneratorWorker) {
-        console.log("[Main] Generator worker is not available (null). Attempting to initialize.");
-        initGeneratorWorker();
+    try {
         if (!currentGeneratorWorker) {
-            showNotification("Generator worker could not be initialized. Cannot generate puzzle.", "error");
-            hideLoadingModal();
-            return;
+            console.log("[Main] Generator worker is not available (null). Attempting to initialize.");
+            initGeneratorWorker();
+            if (!currentGeneratorWorker) {
+                showNotification("Generator worker could not be initialized. Cannot generate puzzle.", "error");
+                hideLoadingModal();
+                return;
+            }
+            console.log("[Main] Generator worker initialized for new request.");
         }
-        console.log("[Main] Generator worker initialized for new request.");
-    }
 
-    showLoadingModal("Warming up the puzzle generator...", "Generating Puzzle");
+        showLoadingModal("Warming up the puzzle generator...", "Generating Puzzle");
 
-    const difficultySlider = document.getElementById('sandbox-difficulty-slider');
-    if (difficultySlider) {
-        const selectedValue = parseInt(difficultySlider.value);
-        if (difficultySettings[selectedValue]) {
-            currentDifficulty = difficultySettings[selectedValue];
+        const difficultySlider = document.getElementById('sandbox-difficulty-slider');
+        if (difficultySlider) {
+            const selectedValue = parseInt(difficultySlider.value);
+            if (difficultySettings[selectedValue]) {
+                currentDifficulty = difficultySettings[selectedValue];
+            }
         }
-    }
 
-    if (window.APP_CONFIG) {
-        GENERATOR_WORKER_MAX_ITERATIONS = window.APP_CONFIG.GENERATOR_WORKER_MAX_ITERATIONS !== undefined ? window.APP_CONFIG.GENERATOR_WORKER_MAX_ITERATIONS : GENERATOR_WORKER_MAX_ITERATIONS;
-        GENERATOR_WORKER_MAX_SHALLOW_BFS_DEPTH = window.APP_CONFIG.GENERATOR_WORKER_MAX_SHALLOW_BFS_DEPTH !== undefined ? window.APP_CONFIG.GENERATOR_WORKER_MAX_SHALLOW_BFS_DEPTH : GENERATOR_WORKER_MAX_SHALLOW_BFS_DEPTH;
-        GENERATOR_MAX_GENERATION_ATTEMPTS = window.APP_CONFIG.GENERATOR_MAX_GENERATION_ATTEMPTS !== undefined ? window.APP_CONFIG.GENERATOR_MAX_GENERATION_ATTEMPTS : GENERATOR_MAX_GENERATION_ATTEMPTS;
-    }
-
-    const uniformCornersCheckbox = document.getElementById('sandbox-uniform-corners-checkbox');
-    const makeCornersUniform = uniformCornersCheckbox ? uniformCornersCheckbox.checked : false;
-
-    const allowedColorCheckboxes = document.querySelectorAll('#sandbox-allowed-colors-container input[type="checkbox"]:checked');
-    let allowedColorsForGeneration = Array.from(allowedColorCheckboxes).map(cb => cb.value);
-
-    if (allowedColorsForGeneration.length === 0) {
-        allowedColorsForGeneration = Object.keys(colors).filter(key => key !== 'gray');
-        document.querySelectorAll('#sandbox-allowed-colors-container input[type="checkbox"]').forEach(checkbox => checkbox.checked = true);
-        showNotification('No colors selected for generation. Defaulting to all available colors.', 'warning');
-    }
-
-    const genOptions = {
-        allowedColors: allowedColorsForGeneration,
-        makeCornersUniform: makeCornersUniform
-    };
-
-    if (makeCornersUniform && selectedUniformCornerColor) {
-        genOptions.uniformCornerColorTarget = selectedUniformCornerColor;
-    }
-
-    currentGeneratorWorker.postMessage({
-        type: 'startGeneration',
-        data: {
-            difficulty: currentDifficulty,
-            userSeed: userSeed,
-            colors: colors,
-            generationOptions: genOptions,
-            WORKER_MAX_ITERATIONS: GENERATOR_WORKER_MAX_ITERATIONS,
-            WORKER_MAX_SHALLOW_BFS_DEPTH: GENERATOR_WORKER_MAX_SHALLOW_BFS_DEPTH,
-            MAX_GENERATION_ATTEMPTS: GENERATOR_MAX_GENERATION_ATTEMPTS
+        if (window.APP_CONFIG) {
+            GENERATOR_WORKER_MAX_ITERATIONS = window.APP_CONFIG.GENERATOR_WORKER_MAX_ITERATIONS !== undefined ? window.APP_CONFIG.GENERATOR_WORKER_MAX_ITERATIONS : GENERATOR_WORKER_MAX_ITERATIONS;
+            GENERATOR_WORKER_MAX_SHALLOW_BFS_DEPTH = window.APP_CONFIG.GENERATOR_WORKER_MAX_SHALLOW_BFS_DEPTH !== undefined ? window.APP_CONFIG.GENERATOR_WORKER_MAX_SHALLOW_BFS_DEPTH : GENERATOR_WORKER_MAX_SHALLOW_BFS_DEPTH;
+            GENERATOR_MAX_GENERATION_ATTEMPTS = window.APP_CONFIG.GENERATOR_MAX_GENERATION_ATTEMPTS !== undefined ? window.APP_CONFIG.GENERATOR_MAX_GENERATION_ATTEMPTS : GENERATOR_MAX_GENERATION_ATTEMPTS;
         }
-    });
+
+        const uniformCornersCheckbox = document.getElementById('sandbox-uniform-corners-checkbox');
+        const makeCornersUniform = uniformCornersCheckbox ? uniformCornersCheckbox.checked : false;
+
+        const allowedColorCheckboxes = document.querySelectorAll('#sandbox-allowed-colors-container input[type="checkbox"]:checked');
+        let allowedColorsForGeneration = Array.from(allowedColorCheckboxes).map(cb => cb.value);
+
+        if (allowedColorsForGeneration.length === 0) {
+            allowedColorsForGeneration = Object.keys(colors).filter(key => key !== 'gray');
+            document.querySelectorAll('#sandbox-allowed-colors-container input[type="checkbox"]').forEach(checkbox => checkbox.checked = true);
+            showNotification('No colors selected for generation. Defaulting to all available colors.', 'warning');
+        }
+
+        const genOptions = {
+            allowedColors: allowedColorsForGeneration,
+            makeCornersUniform: makeCornersUniform
+        };
+
+        if (makeCornersUniform && selectedUniformCornerColor) {
+            genOptions.uniformCornerColorTarget = selectedUniformCornerColor;
+        }
+
+        const workerData = {
+            type: 'startGeneration',
+            data: {
+                difficulty: currentDifficulty,
+                userSeed: userSeed,
+                colors: colors,
+                generationOptions: genOptions,
+                WORKER_MAX_ITERATIONS: GENERATOR_WORKER_MAX_ITERATIONS,
+                WORKER_MAX_SHALLOW_BFS_DEPTH: GENERATOR_WORKER_MAX_SHALLOW_BFS_DEPTH,
+                MAX_GENERATION_ATTEMPTS: GENERATOR_MAX_GENERATION_ATTEMPTS
+            }
+        };
+
+        console.log("[Main] Sending generation request to worker:", workerData);
+        currentGeneratorWorker.postMessage(workerData);
+
+    } catch (error) {
+        console.error("[Main] Error in requestPuzzleGenerationFromWorker:", error);
+        hideLoadingModal();
+        showNotification('Failed to start puzzle generation. Please try again.', 'error', 5000);
+
+        terminateGeneratorWorker();
+
+        setTimeout(() => {
+            console.log("[Main] Reinitializing worker after request error");
+            initGeneratorWorker();
+        }, 1000);
+    }
 }
 
 function handleGeneratorWorkerMessage(e) {
-    const { type, puzzleData, message, error, details } = e.data;
+    try {
+        console.log("[Generator Worker] Received message:", e.data);
+        const { type, puzzleData, message, error, details } = e.data;
 
-    if (type === 'progress') {
-        updateLoadingPhrase(message + (details && details.seed ? ` (Seed: ${details.seed})` : ''));
-        return;
-    }
-
-    hideLoadingModal();
-
-    if (type === 'generationResult' && puzzleData) {
-        console.log("[Main] Generator Worker Result:", puzzleData);
-
-        sandboxTargetCorners = { ...puzzleData.targetCorners };
-        updateSandboxCornerSymbolsDisplay();
-        sandboxGrid = [...puzzleData.initialGrid];
-        renderSandboxGrid();
-        sandboxInPlayMode = false;
-        sandboxPuzzleSolved = false;
-        sandboxInitialPlayGrid = [...puzzleData.initialGrid];
-        currentSandboxSolutionPath = puzzleData.solutionPath;
-
-        const seedInput = document.getElementById('sandbox-seed-input');
-        if (seedInput) {
-            seedInput.value = puzzleData.seed;
+        if (type === 'progress') {
+            const progressMessage = message + (details && details.seed ? ` (Seed: ${details.seed})` : '');
+            updateLoadingPhrase(progressMessage);
+            console.log("[Generator Worker] Progress update:", progressMessage);
+            return;
         }
 
-        savePuzzleToHistory({
-            seed: puzzleData.seed,
-            initialGrid: puzzleData.initialGrid,
-            targetCorners: puzzleData.targetCorners,
-            solutionPath: puzzleData.solutionPath,
-            difficultyLabel: puzzleData.difficultyLabel,
-            steps: puzzleData.steps,
-            isTrivial: puzzleData.isTrivial || false
-        });
+        console.log("[Generator Worker] Processing final message, hiding loading modal");
+        hideLoadingModal();
 
-        let notificationMessage = message || `Puzzle generated (Seed: ${puzzleData.seed}). Steps: ${puzzleData.steps}.`;
-        if (puzzleData.isTrivial && !puzzleData.userSeed) {
-            notificationMessage += ` Note: This puzzle is simpler than typical for ${puzzleData.difficultyLabel} difficulty.`;
+        if (type === 'generationResult' && puzzleData) {
+            console.log("[Generator Worker] Successful generation result:", puzzleData);
+
+            sandboxTargetCorners = { ...puzzleData.targetCorners };
+            updateSandboxCornerSymbolsDisplay();
+            sandboxGrid = [...puzzleData.initialGrid];
+            renderSandboxGrid();
+            sandboxInPlayMode = false;
+            sandboxPuzzleSolved = false;
+            sandboxInitialPlayGrid = [...puzzleData.initialGrid];
+            currentSandboxSolutionPath = puzzleData.solutionPath;
+
+            const seedInput = document.getElementById('sandbox-seed-input');
+            if (seedInput) {
+                seedInput.value = puzzleData.seed;
+            }
+
+            try {
+                savePuzzleToHistory({
+                    seed: puzzleData.seed,
+                    initialGrid: puzzleData.initialGrid,
+                    targetCorners: puzzleData.targetCorners,
+                    solutionPath: puzzleData.solutionPath,
+                    difficultyLabel: puzzleData.difficultyLabel,
+                    steps: puzzleData.steps,
+                    isTrivial: puzzleData.isTrivial || false
+                });
+                console.log("[Generator Worker] Puzzle saved to history");
+            } catch (historyError) {
+                console.error("[Generator Worker] Failed to save puzzle to history:", historyError);
+            }
+
+            let notificationMessage = message || `Puzzle generated (Seed: ${puzzleData.seed}). Steps: ${puzzleData.steps}.`;
+            if (puzzleData.isTrivial && !puzzleData.userSeed) {
+                notificationMessage += ` Note: This puzzle is simpler than typical for ${puzzleData.difficultyLabel} difficulty.`;
+            }
+            showNotification(notificationMessage, 'success', 5000);
+
+            if (sandboxTestSolveBtn) sandboxTestSolveBtn.textContent = 'Show Solution Steps';
+            const solutionDisplay = document.getElementById('sandbox-solution-display');
+            if (solutionDisplay) {
+                solutionDisplay.innerHTML = '';
+                solutionDisplay.style.display = 'none';
+            }
+
+        } else if (type === 'generationError' && error) {
+            console.error("[Generator Worker] Generation error received:", error);
+            console.error("[Generator Worker] Full error object:", JSON.stringify(error, Object.getOwnPropertyNames(error)));
+
+            showNotification(`Puzzle Generation Failed: ${error}`, 'error', 7000);
+            currentSandboxSolutionPath = null;
+
+            if (sandboxTestSolveBtn) sandboxTestSolveBtn.textContent = 'Test Solve This Puzzle';
+            const solutionDisplay = document.getElementById('sandbox-solution-display');
+            if (solutionDisplay) solutionDisplay.style.display = 'none';
+
+            terminateGeneratorWorker();
+
+        } else {
+            console.warn("[Generator Worker] Unknown message type or missing data:", e.data);
+            showNotification('Received unexpected response from puzzle generator. Please try again.', 'warning', 5000);
+
+            currentSandboxSolutionPath = null;
+            if (sandboxTestSolveBtn) sandboxTestSolveBtn.textContent = 'Test Solve This Puzzle';
+            const solutionDisplay = document.getElementById('sandbox-solution-display');
+            if (solutionDisplay) solutionDisplay.style.display = 'none';
         }
-        showNotification(notificationMessage, 'success', 5000);
 
-        if (sandboxTestSolveBtn) sandboxTestSolveBtn.textContent = 'Show Solution Steps';
-        document.getElementById('sandbox-solution-display').innerHTML = '';
-        document.getElementById('sandbox-solution-display').style.display = 'none';
+    } catch (processingError) {
+        console.error("[Generator Worker] Error processing worker message:", processingError);
+        console.error("[Generator Worker] Original message data:", e.data);
 
-    } else if (type === 'generationError' && error) {
-        console.error("[Main] Generator Worker Error:", error);
-        console.error("[Main] Full error object:", JSON.stringify(error, Object.getOwnPropertyNames(error)));
-        showNotification(`Puzzle Generation Failed: ${error}`, 'error', 7000);
+        hideLoadingModal();
+        showNotification('An error occurred while processing the puzzle generation result. Please try again.', 'error', 7000);
+
         currentSandboxSolutionPath = null;
         if (sandboxTestSolveBtn) sandboxTestSolveBtn.textContent = 'Test Solve This Puzzle';
-        document.getElementById('sandbox-solution-display').style.display = 'none';
+        const solutionDisplay = document.getElementById('sandbox-solution-display');
+        if (solutionDisplay) solutionDisplay.style.display = 'none';
 
-        if (currentGeneratorWorker) {
-            currentGeneratorWorker.terminate();
-            currentGeneratorWorker = null;
-            console.log("[Main] Generator Worker terminated due to error.");
-        }
-    } else {
-        console.warn("[Main] Unknown message type from Generator Worker or missing data:", e.data);
+        terminateGeneratorWorker();
     }
 }
 
 function handleGeneratorWorkerError(error) {
-    console.error("[Main] Error in Generator Worker:", error);
-    console.error("[Main] Full error object:", JSON.stringify(error, Object.getOwnPropertyNames(error)));
+    console.error("[Generator Worker] Worker error occurred:", error);
+    console.error("[Generator Worker] Error details:", {
+        message: error.message,
+        filename: error.filename,
+        lineno: error.lineno,
+        colno: error.colno,
+        stack: error.stack
+    });
+
     hideLoadingModal();
-    showNotification(`An unexpected error occurred in the puzzle generator: ${error.message || 'Unknown error'}`, 'error', 7000);
+
+    const errorMessage = error.message || 'Unknown worker error occurred';
+    showNotification(`An unexpected error occurred in the puzzle generator: ${errorMessage}`, 'error', 7000);
+
     currentSandboxSolutionPath = null;
     if (sandboxTestSolveBtn) sandboxTestSolveBtn.textContent = 'Test Solve This Puzzle';
-    document.getElementById('sandbox-solution-display').style.display = 'none';
 
-    if (currentGeneratorWorker) {
-        currentGeneratorWorker.terminate();
-        currentGeneratorWorker = null;
-        console.log("[Main] Generator Worker terminated due to error.");
-    }
+    const solutionDisplay = document.getElementById('sandbox-solution-display');
+    if (solutionDisplay) solutionDisplay.style.display = 'none';
+
+    terminateGeneratorWorker();
+
+    setTimeout(() => {
+        console.log("[Generator Worker] Attempting to reinitialize worker after error");
+        initGeneratorWorker();
+    }, 1000);
 }
 
 function animateCardsInActiveTab() {
@@ -1763,5 +1904,13 @@ function loadSandboxGenerationSettings() {
         saveSandboxGenerationSettings();
     } catch (e) {
         console.error("[Main] Error loading sandbox settings:", e);
+    }
+}
+
+function terminateGeneratorWorker() {
+    if (currentGeneratorWorker) {
+        currentGeneratorWorker.terminate();
+        currentGeneratorWorker = null;
+        console.log("[Main] Generator Worker terminated.");
     }
 }

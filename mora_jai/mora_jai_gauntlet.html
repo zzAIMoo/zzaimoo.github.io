@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mora Jai Gauntlet</title>
+    <link rel="stylesheet" href="../theme.css">
+    <link rel="stylesheet" href="mora_jai_styles.css">
+    <link rel="stylesheet" href="mora_jai_gauntlet.css">
+    <link rel="icon" type="image/png" href="../favicon.png">
+</head>
+<body>
+    <div style="padding: 15px 0px 0px 15px; display: flex; justify-content: space-between; align-items: center;">
+        <a href="../index.html" class="button button-secondary button-small">&larr; Back to Home</a>
+        <div style="display: flex; gap: 10px;">
+            <button id="boss-effects-btn" class="button button-small button-secondary" style="display: none;">Boss Effects: ON</button>
+            <button id="dev-mode-btn" class="button button-small button-secondary" style="display: none;">Dev: Unlock Upgrades</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <div id="gauntlet-start-screen">
+            <div class="card gauntlet-welcome-card">
+                <div class="gauntlet-hero-header">
+                    <div class="gauntlet-hero-icon">⚔️</div>
+                    <h2 class="card-title gauntlet-hero-title">The Gauntlet Awaits</h2>
+                    <div class="gauntlet-hero-subtitle">Only the worthy shall inherit the legacy</div>
+                </div>
+
+                <div class="gauntlet-challenge-text">
+                    <p class="gauntlet-main-challenge">
+                        <strong>Are you the next heir?</strong> The ancient puzzles of the Mora Jai call to those brave enough to face them.
+                    </p>
+                    <p class="gauntlet-description">
+                        Eight trials lie before you, each more treacherous than the last. Choose your abilities wisely, for only through cunning and perseverance will you claim the title of <span class="highlight-text">Heir of the Mora Jai</span>.
+                    </p>
+
+                    <div class="gauntlet-stats">
+                        <div class="stat-item">
+                            <div class="stat-number">8</div>
+                            <div class="stat-label">Trials</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-number">∞</div>
+                            <div class="stat-label">Strategies</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-number">1</div>
+                            <div class="stat-label">Heir</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="controls gauntlet-action-buttons">
+                    <button id="start-new-gauntlet-btn" class="button gauntlet-primary-btn">
+                        <span class="btn-icon">⚜️</span>
+                        Begin Your Trial
+                    </button>
+                    <button id="resume-gauntlet-btn" class="button button-secondary gauntlet-resume-btn" style="display: none;">
+                        <span class="btn-icon">📜</span>
+                        Continue Your Journey
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div id="gauntlet-active-screen" style="display: none;">
+
+        </div>
+
+    </div>
+
+    <div id="upgrade-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <h2>Puzzle Complete! Choose Your Upgrade</h2>
+            <p>Select one of the three upgrades below to assist you for the rest of your run.</p>
+            <div id="upgrade-options-container">
+            </div>
+        </div>
+    </div>
+
+    <div id="shop-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <h2>🏪 Merchant's Shop</h2>
+            <p>Spend your hard-earned gold on powerful consumables and temporary boosts!</p>
+            <div id="shop-items-container">
+            </div>
+            <div class="controls" style="justify-content: center; margin-top: 20px;">
+                <button id="shop-continue-btn" class="button">Continue Journey</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="confirmation-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-content small-modal">
+            <h2 id="confirmation-title">Are you sure?</h2>
+            <p id="confirmation-message">Do you really want to do this?</p>
+            <div class="controls" style="justify-content: center; gap: 10px;">
+                <button id="confirm-cancel-btn" class="button button-secondary">Cancel</button>
+                <button id="confirm-accept-btn" class="button">Confirm</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="gauntlet-complete-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <h2>Gauntlet Complete!</h2>
+            <p>Congratulations, you have conquered the Mora Jai Gauntlet! Your run has been cleared. Feel free to start a new one.</p>
+            <div class="controls" style="justify-content: center;">
+                <button id="gauntlet-complete-ok-btn" class="button">Back to Start</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="loading-modal" class="modal-overlay" style="display: none;">
+        <div class="modal-content loading-modal-content">
+            <div class="loading-spinner"></div>
+            <h2>Generating Puzzle...</h2>
+            <p>Creating your next challenge. This may take a moment.</p>
+        </div>
+    </div>
+
+    <div class="toast-container"></div>
+
+    <script src="config.js"></script>
+    <script src="mora_jai_utils.js"></script>
+    <script src="abilities.js"></script>
+    <script src="mora_jai_gauntlet.js"></script>
+</body>
+</html>

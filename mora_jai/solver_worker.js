@@ -1,12 +1,17 @@
 importScripts('mora_jai_utils.js');
 
+const TARGET_CORNER_INDICES = { tl: 0, tr: 2, bl: 6, br: 8 };
+const PROGRESS_UPDATE_INTERVAL = {
+    BFS: 10000,
+    IDDFS: 20000
+};
+
 let workerStopSolving = false;
 
 function solvePuzzle(initialGrid, targetCornersConfig, maxSteps, maxDepthLimit, maxIterations) {
     const startTime = performance.now();
     const initialState = [...initialGrid];
     const targetCorners = { ...targetCornersConfig };
-    const targetCornerIndices = { tl: 0, tr: 2, bl: 6, br: 8 };
 
     let visited = new Set();
     let iterations = 0;
@@ -25,46 +30,61 @@ function solvePuzzle(initialGrid, targetCornersConfig, maxSteps, maxDepthLimit, 
     }
 
     function isSolved(state) {
-        if (!targetCorners.tl || !targetCorners.tr || !targetCorners.bl || !targetCorners.br) {
+        if (!isValidTargetCorners(targetCorners)) {
             console.warn("Worker: Target corners not fully defined.");
             return false;
         }
-        return state[targetCornerIndices.tl] === targetCorners.tl &&
-            state[targetCornerIndices.tr] === targetCorners.tr &&
-            state[targetCornerIndices.bl] === targetCorners.bl &&
-            state[targetCornerIndices.br] === targetCorners.br;
+        return Object.keys(TARGET_CORNER_INDICES).every(corner =>
+            state[TARGET_CORNER_INDICES[corner]] === targetCorners[corner]
+        );
+    }
+
+    function isValidTargetCorners(corners) {
+        return corners.tl && corners.tr && corners.bl && corners.br;
+    }
+
+    function createSolutionStep(index, state) {
+        return { index, color: state[index], triggeredBy: state[index] };
     }
 
     function bfs() {
         const queue = [{ state: initialState, path: [] }];
         addToVisited(initialState);
+
         while (queue.length > 0 && !workerStopSolving) {
             iterations++;
+
             if (iterations > maxIterations) {
-                return { solved: false, reason: 'Exceeded maximum iterations' };
+                return createResult(false, null, 'Exceeded maximum iterations');
             }
+
             const { state, path } = queue.shift();
+
             if (isSolved(state)) {
-                return { solved: true, path, iterations, time: (performance.now() - startTime) / 1000 };
+                return createResult(true, path);
             }
+
             if (path.length >= maxSteps) {
                 continue;
             }
-            for (let i = 0; i < 9; i++) {
+
+            for (let i = 0; i < TOTAL_CELLS; i++) {
                 const newState = performAction(state, i);
                 if (!isVisited(newState)) {
                     addToVisited(newState);
                     queue.push({
                         state: newState,
-                        path: [...path, { index: i, color: state[i], triggeredBy: state[i] }]
+                        path: [...path, createSolutionStep(i, state)]
                     });
                 }
             }
-            if (iterations % 10000 === 0) {
+
+            if (iterations % PROGRESS_UPDATE_INTERVAL.BFS === 0) {
                 updateProgress(`Searching (BFS)... ${iterations.toLocaleString()} iterations, ${queue.length.toLocaleString()} states`);
             }
         }
-        return { solved: false, reason: 'BFS exhausted or stopped', iterations, time: (performance.now() - startTime) / 1000 };
+
+        return createResult(false, null, 'BFS exhausted or stopped');
     }
 
     function idDfs() {
@@ -74,71 +94,91 @@ function solvePuzzle(initialGrid, targetCornersConfig, maxSteps, maxDepthLimit, 
             updateProgress(`Trying depth limit: ${depthLimit} (IDDFS)`);
             visited = new Set();
             iterations = 0;
+
             const result = dfsLimited(initialState, [], 0, depthLimit);
             if (result.solved) {
-                return { ...result, iterations, time: (performance.now() - startTime) / 1000 };
+                return result;
             }
             depthLimit++;
         }
-        return { solved: false, reason: `No solution within ${maxDepthLimit} steps (IDDFS)`, iterations, time: (performance.now() - startTime) / 1000 };
+
+        return createResult(false, null, `No solution within ${maxDepthLimit} steps (IDDFS)`);
     }
 
     function dfsLimited(state, path, depth, maxDepth) {
         iterations++;
+
         if (iterations > maxIterations) {
-            return { solved: false, reason: 'Exceeded maximum iterations' };
+            return createResult(false, null, 'Exceeded maximum iterations');
         }
+
         if (workerStopSolving) {
-            return { solved: false, reason: 'Solving stopped by user' };
+            return createResult(false, null, 'Solving stopped by user');
         }
+
         if (isSolved(state)) {
-            return { solved: true, path };
+            return createResult(true, path);
         }
+
         if (depth >= maxDepth) {
-            return { solved: false, reason: 'Depth limit reached' };
+            return createResult(false, null, 'Depth limit reached');
         }
-        if (iterations % 20000 === 0 && !workerStopSolving) {
+
+        if (iterations % PROGRESS_UPDATE_INTERVAL.IDDFS === 0 && !workerStopSolving) {
             updateProgress(`Searching depth ${depth}/${maxDepth}... (${iterations.toLocaleString()} IDDFS iterations)`);
         }
 
-        for (let i = 0; i < 9; i++) {
-            const originalTileColor = state[i];
+        for (let i = 0; i < TOTAL_CELLS; i++) {
             const newState = performAction(state, i);
             const stateKey = newState.join('');
+
             if (!visited.has(stateKey)) {
                 visited.add(stateKey);
-                const result = dfsLimited(newState, [...path, { index: i, color: originalTileColor, triggeredBy: originalTileColor }], depth + 1, maxDepth);
+                const result = dfsLimited(
+                    newState,
+                    [...path, createSolutionStep(i, state)],
+                    depth + 1,
+                    maxDepth
+                );
+
                 if (result.solved) {
                     return result;
                 }
             }
         }
-        return { solved: false };
+
+        return createResult(false, null);
+    }
+
+    function createResult(solved, path, reason = null) {
+        return {
+            solved,
+            path,
+            reason,
+            iterations,
+            time: (performance.now() - startTime) / 1000
+        };
     }
 
     updateProgress("Trying BFS for simple solutions...");
     let result = bfs();
+
     if (!result.solved && !workerStopSolving) {
         updateProgress("BFS exhausted or too complex. Switching to Iterative Deepening DFS...");
         result = idDfs();
     }
 
-    result.iterations = iterations;
-    result.time = (performance.now() - startTime) / 1000;
-
     return result;
 }
 
-
 self.onmessage = function (e) {
     const { type, data } = e.data;
+
     if (type === 'start') {
         const { initialGrid, targetCorners, MAX_STEPS, MAX_DEPTH_LIMIT, MAX_ITERATIONS } = data;
-        console.log('[Worker] Received start message', data);
         const solutionResult = solvePuzzle(initialGrid, targetCorners, MAX_STEPS, MAX_DEPTH_LIMIT, MAX_ITERATIONS);
         self.postMessage({ type: 'result', data: solutionResult });
     } else if (type === 'stop') {
-        console.log('[Worker] Received stop message');
         workerStopSolving = true;
     }
 };
