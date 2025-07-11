@@ -179,7 +179,7 @@ function performBlueRedAction(newState, index) {
     for (let i = 0; i < newState.length; i++) {
         if (i === index) continue;
         if (newState[i] === 'white') newState[i] = 'black';
-        else if (newState[i] === 'black') newState[i] = 'red';
+        else if (newState[i] === 'black') newState[i] = 'blue';
     }
 }
 
