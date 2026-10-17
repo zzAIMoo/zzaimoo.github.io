@@ -231,28 +231,17 @@ function performBlueOrangeAction(newState, index, row, col) {
 }
 
 function performBlueWhiteAction(newState, index, row, col) {
-    const middleIndex = 4;
-    const middleNeighbors = NEIGHBOR_MAP[middleIndex];
-    let shouldExpand = false;
+   const blueNeighbors = NEIGHBOR_MAP[index];
 
-    for (const neighborIdx of middleNeighbors) {
-        if (newState[neighborIdx] === 'gray') {
-            shouldExpand = true;
-            break;
-        }
-    }
+   for (const neighborIdx of blueNeighbors) {
+      if (newState[neighborIdx] === 'blue') {
+            newState[neighborIdx] = 'gray';
+      } else if (newState[neighborIdx] === 'gray') {
+            newState[neighborIdx] = 'blue';
+      }
+   }
 
-    if (shouldExpand) {
-        const blueNeighbors = NEIGHBOR_MAP[index];
-        for (const neighborIdx of blueNeighbors) {
-            if (newState[neighborIdx] === 'gray') {
-                newState[neighborIdx] = 'blue';
-            }
-        }
-        newState[index] = 'gray';
-    } else {
-        newState[index] = 'gray';
-    }
+    newState[index] = 'gray';
 }
 
 function getSurroundingPositions(row, col) {
